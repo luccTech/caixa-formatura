@@ -56,9 +56,6 @@ interface AppContextType {
   removerProduto: (id: string) => void;
   abrirCaixa: (nome: string) => void;
   fecharCaixa: () => void;
-  adicionarItemAoCaixa: (produtoId: string, quantidade: number) => void;
-  removerItemDoCaixa: (produtoId: string) => void;
-  atualizarQuantidadeCaixa: (produtoId: string, quantidade: number) => void;
   adicionarVenda: (venda: Omit<Venda, 'id'>) => void;
   buscarProdutoPorCodigo: (codigo: string) => Produto | undefined;
   atualizarEstoque: (produtoId: string, quantidade: number) => void;
@@ -176,11 +173,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       throw new Error('Já existe um caixa aberto!');
     }
 
+    // Criar itens do caixa com todos os produtos existentes (quantidade 0)
+    const itensCaixa: ItemCaixa[] = produtos.map(produto => ({
+      produto,
+      quantidade: 0,
+    }));
+
     const novoCaixa: Caixa = {
       id: Date.now().toString(),
       nome,
       dataAbertura: new Date().toISOString(),
-      itens: [],
+      itens: itensCaixa,
       vendas: [],
       totalVendas: 0,
       status: 'aberto',
@@ -212,84 +215,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setCaixaAtual(null);
     salvarCaixas(novasCaixas);
     salvarCaixaAtual(null);
-  };
-
-  const adicionarItemAoCaixa = (produtoId: string, quantidade: number) => {
-    if (!caixaAtual) {
-      throw new Error('Nenhum caixa está aberto!');
-    }
-
-    const produto = produtos.find(p => p.id === produtoId);
-    if (!produto) {
-      throw new Error('Produto não encontrado!');
-    }
-
-    const itemExistente = caixaAtual.itens.find(item => item.produto.id === produtoId);
-    let novosItens;
-
-    if (itemExistente) {
-      novosItens = caixaAtual.itens.map(item =>
-        item.produto.id === produtoId
-          ? { ...item, quantidade: item.quantidade + quantidade }
-          : item
-      );
-    } else {
-      novosItens = [...caixaAtual.itens, { produto, quantidade }];
-    }
-
-    const caixaAtualizado = { ...caixaAtual, itens: novosItens };
-    setCaixaAtual(caixaAtualizado);
-
-    const novasCaixas = caixas.map(c => 
-      c.id === caixaAtual.id ? caixaAtualizado : c
-    );
-    setCaixas(novasCaixas);
-    salvarCaixas(novasCaixas);
-    salvarCaixaAtual(caixaAtualizado);
-  };
-
-  const removerItemDoCaixa = (produtoId: string) => {
-    if (!caixaAtual) {
-      throw new Error('Nenhum caixa está aberto!');
-    }
-
-    const novosItens = caixaAtual.itens.filter(item => item.produto.id !== produtoId);
-    const caixaAtualizado = { ...caixaAtual, itens: novosItens };
-    setCaixaAtual(caixaAtualizado);
-
-    const novasCaixas = caixas.map(c => 
-      c.id === caixaAtual.id ? caixaAtualizado : c
-    );
-    setCaixas(novasCaixas);
-    salvarCaixas(novasCaixas);
-    salvarCaixaAtual(caixaAtualizado);
-  };
-
-  const atualizarQuantidadeCaixa = (produtoId: string, quantidade: number) => {
-    if (!caixaAtual) {
-      throw new Error('Nenhum caixa está aberto!');
-    }
-
-    if (quantidade <= 0) {
-      removerItemDoCaixa(produtoId);
-      return;
-    }
-
-    const novosItens = caixaAtual.itens.map(item =>
-      item.produto.id === produtoId
-        ? { ...item, quantidade }
-        : item
-    );
-
-    const caixaAtualizado = { ...caixaAtual, itens: novosItens };
-    setCaixaAtual(caixaAtualizado);
-
-    const novasCaixas = caixas.map(c => 
-      c.id === caixaAtual.id ? caixaAtualizado : c
-    );
-    setCaixas(novasCaixas);
-    salvarCaixas(novasCaixas);
-    salvarCaixaAtual(caixaAtualizado);
   };
 
   const adicionarVenda = (venda: Omit<Venda, 'id'>) => {
@@ -352,9 +277,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     removerProduto,
     abrirCaixa,
     fecharCaixa,
-    adicionarItemAoCaixa,
-    removerItemDoCaixa,
-    atualizarQuantidadeCaixa,
     adicionarVenda,
     buscarProdutoPorCodigo,
     atualizarEstoque,

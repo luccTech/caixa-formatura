@@ -26,18 +26,13 @@ export default function CaixaScreen() {
     caixaAtual, 
     abrirCaixa, 
     fecharCaixa, 
-    adicionarItemAoCaixa, 
-    removerItemDoCaixa,
-    atualizarQuantidadeCaixa,
     adicionarVenda, 
     atualizarEstoque 
   } = useAppContext();
   
   const [modalAbertura, setModalAbertura] = useState(false);
-  const [modalAdicionarProduto, setModalAdicionarProduto] = useState(false);
   const [modalPagamento, setModalPagamento] = useState(false);
   const [nomeCaixa, setNomeCaixa] = useState('');
-  const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null);
   const [carrinho, setCarrinho] = useState<ItemVenda[]>([]);
   const [formaPagamento, setFormaPagamento] = useState<'dinheiro' | 'pix' | 'combinar'>('dinheiro');
   const [valorRecebido, setValorRecebido] = useState('');
@@ -54,6 +49,11 @@ export default function CaixaScreen() {
   const handleAbrirCaixa = () => {
     if (!nomeCaixa.trim()) {
       Alert.alert('Erro', 'Digite um nome para o caixa!');
+      return;
+    }
+
+    if (produtos.length === 0) {
+      Alert.alert('Erro', 'Não há produtos cadastrados! Cadastre produtos primeiro.');
       return;
     }
 
@@ -89,81 +89,30 @@ export default function CaixaScreen() {
     );
   };
 
-  const abrirModalAdicionarProduto = () => {
-    setModalAdicionarProduto(true);
-    setProdutoSelecionado(null);
-  };
-
-  const selecionarProduto = (produto: Produto) => {
-    setProdutoSelecionado(produto);
-  };
-
-  const adicionarProdutoAoCaixa = () => {
-    if (!produtoSelecionado) {
-      Alert.alert('Erro', 'Selecione um produto!');
+  const adicionarAoCarrinho = (produto: Produto) => {
+    if (produto.estoque <= 0) {
+      Alert.alert('Erro', 'Produto sem estoque!');
       return;
     }
 
-    try {
-      // Adiciona o produto com quantidade 1 (do estoque)
-      adicionarItemAoCaixa(produtoSelecionado.id, 1);
-      setModalAdicionarProduto(false);
-      setProdutoSelecionado(null);
-      Alert.alert('Sucesso', 'Produto adicionado ao caixa!');
-    } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao adicionar produto');
-    }
-  };
-
-  const removerProdutoDoCaixa = (produtoId: string) => {
-    Alert.alert(
-      'Remover Produto',
-      'Deseja realmente remover este produto do caixa?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Remover', 
-          style: 'destructive',
-          onPress: () => {
-            try {
-              removerItemDoCaixa(produtoId);
-              Alert.alert('Sucesso', 'Produto removido do caixa!');
-            } catch (error) {
-              Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao remover produto');
-            }
-          }
-        },
-      ]
-    );
-  };
-
-  const alterarQuantidadeCaixa = (produtoId: string, novaQuantidade: number) => {
-    try {
-      atualizarQuantidadeCaixa(produtoId, novaQuantidade);
-    } catch (error) {
-      Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao alterar quantidade');
-    }
-  };
-
-  const adicionarAoCarrinho = (item: any) => {
-    const itemExistente = carrinho.find(c => c.produto.id === item.produto.id);
+    const itemExistente = carrinho.find(item => item.produto.id === produto.id);
     if (itemExistente) {
-      const novoCarrinho = carrinho.map(c =>
-        c.produto.id === item.produto.id
+      const novoCarrinho = carrinho.map(item =>
+        item.produto.id === produto.id
           ? {
-              ...c,
-              quantidade: c.quantidade + 1,
-              subtotal: (c.quantidade + 1) * c.precoUnitario,
+              ...item,
+              quantidade: item.quantidade + 1,
+              subtotal: (item.quantidade + 1) * item.precoUnitario,
             }
-          : c
+          : item
       );
       setCarrinho(novoCarrinho);
     } else {
       const novoItem: ItemVenda = {
-        produto: item.produto,
+        produto,
         quantidade: 1,
-        precoUnitario: item.produto.preco,
-        subtotal: item.produto.preco,
+        precoUnitario: produto.preco,
+        subtotal: produto.preco,
       };
       setCarrinho([...carrinho, novoItem]);
     }
@@ -172,6 +121,12 @@ export default function CaixaScreen() {
   const alterarQuantidadeCarrinho = (produtoId: string, novaQuantidade: number) => {
     if (novaQuantidade <= 0) {
       setCarrinho(carrinho.filter(item => item.produto.id !== produtoId));
+      return;
+    }
+
+    const produto = produtos.find(p => p.id === produtoId);
+    if (produto && novaQuantidade > produto.estoque) {
+      Alert.alert('Erro', 'Quantidade maior que o estoque disponível!');
       return;
     }
 
@@ -363,76 +318,40 @@ export default function CaixaScreen() {
           </Card>
         )}
 
-        {/* Produtos do Caixa */}
+        {/* Produtos Disponíveis */}
         {caixaAtual && (
           <Card style={styles.produtosCard}>
             <Card.Content>
-              <View style={styles.produtosHeader}>
-                <Text variant="titleMedium" style={styles.cardTitle}>
-                  Produtos no Caixa ({caixaAtual.itens.length})
-                </Text>
-                <Button
-                  mode="outlined"
-                  onPress={abrirModalAdicionarProduto}
-                  icon="plus"
-                  compact
-                >
-                  Adicionar
-                </Button>
-              </View>
+              <Text variant="titleMedium" style={styles.cardTitle}>
+                Produtos Disponíveis ({produtos.length})
+              </Text>
 
-              {caixaAtual.itens.length === 0 ? (
-                <Text variant="bodyMedium" style={styles.produtosVazio}>
-                  Nenhum produto adicionado ao caixa.
-                </Text>
-              ) : (
-                <View style={styles.produtosList}>
-                  {caixaAtual.itens.map((item) => (
-                    <Card key={item.produto.id} style={styles.produtoItem}>
-                      <Card.Content>
-                        <View style={styles.produtoInfo}>
-                          <Text variant="bodyMedium" style={styles.produtoNome}>
-                            {item.produto.nome}
-                          </Text>
-                          <Text variant="bodySmall" style={styles.produtoPreco}>
-                            R$ {item.produto.preco.toFixed(2)} cada
-                          </Text>
-                        </View>
-                        
-                        <View style={styles.produtoControles}>
-                          <IconButton
-                            icon="minus"
-                            size={16}
-                            onPress={() => alterarQuantidadeCaixa(item.produto.id, item.quantidade - 1)}
-                          />
-                          <Text variant="bodyMedium" style={styles.produtoQuantidade}>
-                            {item.quantidade}
-                          </Text>
-                          <IconButton
-                            icon="plus"
-                            size={16}
-                            onPress={() => alterarQuantidadeCaixa(item.produto.id, item.quantidade + 1)}
-                          />
-                          <IconButton
-                            icon="delete"
-                            size={16}
-                            onPress={() => removerProdutoDoCaixa(item.produto.id)}
-                            iconColor="#f44336"
-                          />
-                          <Button
-                            mode="contained"
-                            onPress={() => adicionarAoCarrinho(item)}
-                            compact
-                            style={styles.venderButton}
-                          >
-                            Vender
-                          </Button>
-                        </View>
-                      </Card.Content>
-                    </Card>
-                  ))}
-                </View>
-              )}
+              <View style={styles.produtosList}>
+                {produtos.map((produto) => (
+                  <Card key={produto.id} style={styles.produtoItem}>
+                    <Card.Content>
+                      <View style={styles.produtoInfo}>
+                        <Text variant="bodyMedium" style={styles.produtoNome}>
+                          {produto.nome}
+                        </Text>
+                        <Text variant="bodySmall" style={styles.produtoPreco}>
+                          R$ {produto.preco.toFixed(2)} - Estoque: {produto.estoque}
+                        </Text>
+                      </View>
+                      
+                      <Button
+                        mode="contained"
+                        onPress={() => adicionarAoCarrinho(produto)}
+                        disabled={produto.estoque <= 0}
+                        style={styles.venderButton}
+                        icon="plus"
+                      >
+                        Vender
+                      </Button>
+                    </Card.Content>
+                  </Card>
+                ))}
+              </View>
             </Card.Content>
           </Card>
         )}
@@ -589,65 +508,6 @@ export default function CaixaScreen() {
         </Modal>
       </Portal>
 
-      {/* Modal de Adicionar Produto */}
-      <Portal>
-        <Modal
-          visible={modalAdicionarProduto}
-          onDismiss={() => setModalAdicionarProduto(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <ScrollView>
-            <Text variant="headlineSmall" style={styles.modalTitle}>
-              Adicionar Produto ao Caixa
-            </Text>
-            
-            <Text variant="bodyMedium" style={styles.modalSubtitle}>
-              Selecione um Produto:
-            </Text>
-            
-            <View style={styles.produtosSelect}>
-              {produtos.map((produto) => (
-                <Card
-                  key={produto.id}
-                  style={[
-                    styles.produtoSelectItem,
-                    produtoSelecionado?.id === produto.id && styles.produtoSelecionado
-                  ]}
-                  onPress={() => selecionarProduto(produto)}
-                >
-                  <Card.Content>
-                    <Text variant="bodyMedium" style={styles.produtoSelectNome}>
-                      {produto.nome}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.produtoSelectPreco}>
-                      R$ {produto.preco.toFixed(2)} - Estoque: {produto.estoque}
-                    </Text>
-                  </Card.Content>
-                </Card>
-              ))}
-            </View>
-            
-            <View style={styles.modalButtons}>
-              <Button
-                mode="outlined"
-                onPress={() => setModalAdicionarProduto(false)}
-                style={styles.modalButton}
-              >
-                Cancelar
-              </Button>
-              <Button
-                mode="contained"
-                onPress={adicionarProdutoAoCaixa}
-                style={styles.modalButton}
-                disabled={!produtoSelecionado}
-              >
-                Adicionar
-              </Button>
-            </View>
-          </ScrollView>
-        </Modal>
-      </Portal>
-
       {/* Modal de Pagamento */}
       <Portal>
         <Modal
@@ -801,17 +661,6 @@ const styles = StyleSheet.create({
   produtosCard: {
     marginBottom: 16,
   },
-  produtosHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  produtosVazio: {
-    textAlign: 'center',
-    color: '#666',
-    fontStyle: 'italic',
-  },
   produtosList: {
     gap: 8,
   },
@@ -827,18 +676,8 @@ const styles = StyleSheet.create({
   produtoPreco: {
     color: '#666',
   },
-  produtoControles: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  produtoQuantidade: {
-    fontWeight: 'bold',
-    minWidth: 30,
-    textAlign: 'center',
-  },
   venderButton: {
-    marginLeft: 8,
+    alignSelf: 'flex-end',
   },
   carrinhoCard: {
     marginBottom: 16,
@@ -922,30 +761,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontWeight: 'bold',
   },
-  modalSubtitle: {
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
   input: {
     marginBottom: 16,
-  },
-  produtosSelect: {
-    gap: 8,
-    marginBottom: 20,
-  },
-  produtoSelectItem: {
-    marginBottom: 4,
-  },
-  produtoSelecionado: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#2196F3',
-    borderWidth: 2,
-  },
-  produtoSelectNome: {
-    fontWeight: '500',
-  },
-  produtoSelectPreco: {
-    color: '#666',
   },
   modalTotal: {
     textAlign: 'center',
