@@ -8,7 +8,6 @@ import {
 import {
     Button,
     Card,
-    Chip,
     Divider,
     FAB,
     IconButton,
@@ -28,7 +27,6 @@ export default function ProdutosScreen() {
     nome: '',
     preco: '',
     estoque: '',
-    categoria: '',
     codigo: '',
   });
 
@@ -37,7 +35,6 @@ export default function ProdutosScreen() {
       nome: '',
       preco: '',
       estoque: '',
-      categoria: '',
       codigo: '',
     });
     setEditingProduto(null);
@@ -49,14 +46,13 @@ export default function ProdutosScreen() {
       nome: produto.nome,
       preco: produto.preco.toString(),
       estoque: produto.estoque.toString(),
-      categoria: produto.categoria,
       codigo: produto.codigo,
     });
     setModalVisible(true);
   };
 
   const handleSubmit = () => {
-    if (!formData.nome || !formData.preco || !formData.estoque || !formData.categoria || !formData.codigo) {
+    if (!formData.nome || !formData.preco || !formData.estoque || !formData.codigo) {
       Alert.alert('Erro', 'Preencha todos os campos obrigatórios!');
       return;
     }
@@ -81,7 +77,6 @@ export default function ProdutosScreen() {
         nome: formData.nome,
         preco,
         estoque,
-        categoria: formData.categoria,
         codigo: formData.codigo,
       });
 
@@ -98,7 +93,6 @@ export default function ProdutosScreen() {
         nome: formData.nome,
         preco,
         estoque,
-        categoria: formData.categoria,
         codigo: formData.codigo,
       });
 
@@ -164,9 +158,6 @@ export default function ProdutosScreen() {
                     <Text variant="titleMedium" style={styles.produtoNome}>
                       {produto.nome}
                     </Text>
-                    <Chip mode="outlined" style={styles.categoriaChip}>
-                      {produto.categoria}
-                    </Chip>
                   </View>
                   <View style={styles.produtoActions}>
                     <IconButton
@@ -275,15 +266,6 @@ export default function ProdutosScreen() {
               keyboardType="numeric"
             />
             
-            <TextInput
-              label="Categoria *"
-              value={formData.categoria}
-              onChangeText={(text: string) => setFormData({ ...formData, categoria: text })}
-              style={styles.input}
-              mode="outlined"
-              placeholder="Ex: Bebidas, Alimentos, etc."
-            />
-            
             <View style={styles.modalButtons}>
               <Button
                 mode="outlined"
@@ -367,9 +349,6 @@ const styles = StyleSheet.create({
   },
   produtoActions: {
     flexDirection: 'row',
-  },
-  categoriaChip: {
-    alignSelf: 'flex-start',
   },
   divider: {
     marginVertical: 12,

@@ -38,10 +38,11 @@ export default function CaixaScreen() {
   const [modalPagamento, setModalPagamento] = useState(false);
   const [nomeCaixa, setNomeCaixa] = useState('');
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(null);
-  const [quantidadeProduto, setQuantidadeProduto] = useState('1');
   const [carrinho, setCarrinho] = useState<ItemVenda[]>([]);
-  const [formaPagamento, setFormaPagamento] = useState<'dinheiro' | 'cartao' | 'pix'>('dinheiro');
+  const [formaPagamento, setFormaPagamento] = useState<'dinheiro' | 'pix' | 'combinar'>('dinheiro');
   const [valorRecebido, setValorRecebido] = useState('');
+  const [pagamentoDinheiro, setPagamentoDinheiro] = useState('');
+  const [pagamentoPix, setPagamentoPix] = useState('');
   const [desconto, setDesconto] = useState('0');
   
   const nomeInputRef = useRef<any>(null);
@@ -91,7 +92,6 @@ export default function CaixaScreen() {
   const abrirModalAdicionarProduto = () => {
     setModalAdicionarProduto(true);
     setProdutoSelecionado(null);
-    setQuantidadeProduto('1');
   };
 
   const selecionarProduto = (produto: Produto) => {
@@ -104,22 +104,11 @@ export default function CaixaScreen() {
       return;
     }
 
-    const quantidade = parseInt(quantidadeProduto);
-    if (isNaN(quantidade) || quantidade <= 0) {
-      Alert.alert('Erro', 'Quantidade deve ser um número válido!');
-      return;
-    }
-
-    if (quantidade > produtoSelecionado.estoque) {
-      Alert.alert('Erro', 'Quantidade maior que o estoque disponível!');
-      return;
-    }
-
     try {
-      adicionarItemAoCaixa(produtoSelecionado.id, quantidade);
+      // Adiciona o produto com quantidade 1 (do estoque)
+      adicionarItemAoCaixa(produtoSelecionado.id, 1);
       setModalAdicionarProduto(false);
       setProdutoSelecionado(null);
-      setQuantidadeProduto('1');
       Alert.alert('Sucesso', 'Produto adicionado ao caixa!');
     } catch (error) {
       Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao adicionar produto');
@@ -231,37 +220,69 @@ export default function CaixaScreen() {
       }
     }
 
+    if (formaPagamento === 'combinar') {
+      const dinheiro = parseFloat(pagamentoDinheiro) || 0;
+      const pix = parseFloat(pagamentoPix) || 0;
+      const totalCombinado = dinheiro + pix;
+      
+      if (totalCombinado !== totalFinal) {
+        Alert.alert('Erro', 'A soma dos pagamentos deve ser igual ao total!');
+        return;
+      }
+    }
+
     // Atualizar estoque
     carrinho.forEach(item => {
       atualizarEstoque(item.produto.id, item.quantidade);
     });
 
-    // Registrar venda
-    const troco = formaPagamento === 'dinheiro' ? parseFloat(valorRecebido) - totalFinal : 0;
-    
+    // Calcular troco
+    let troco = 0;
+    if (formaPagamento === 'dinheiro') {
+      troco = parseFloat(valorRecebido) - totalFinal;
+    }
+
+    // Preparar dados da venda
+    const dadosVenda: any = {
+      caixaId: caixaAtual!.id,
+      itens: carrinho,
+      total: totalFinal,
+      formaPagamento,
+      data: new Date().toISOString(),
+      desconto: descontoValor,
+      troco,
+    };
+
+    // Adicionar valores específicos para pagamento combinado
+    if (formaPagamento === 'combinar') {
+      dadosVenda.pagamentoDinheiro = parseFloat(pagamentoDinheiro) || 0;
+      dadosVenda.pagamentoPix = parseFloat(pagamentoPix) || 0;
+    }
+
     try {
-      adicionarVenda({
-        caixaId: caixaAtual!.id,
-        itens: carrinho,
-        total: totalFinal,
-        formaPagamento,
-        data: new Date().toISOString(),
-        desconto: descontoValor,
-        troco,
-      });
+      adicionarVenda(dadosVenda);
 
       // Limpar carrinho e fechar modal
       setCarrinho([]);
       setModalPagamento(false);
       setValorRecebido('');
+      setPagamentoDinheiro('');
+      setPagamentoPix('');
       setDesconto('0');
       setFormaPagamento('dinheiro');
 
-      Alert.alert(
-        'Venda Finalizada!',
-        `Total: R$ ${totalFinal.toFixed(2)}\nForma de Pagamento: ${formaPagamento.toUpperCase()}${troco > 0 ? `\nTroco: R$ ${troco.toFixed(2)}` : ''}`,
-        [{ text: 'OK' }]
-      );
+      let mensagem = `Total: R$ ${totalFinal.toFixed(2)}\nForma de Pagamento: ${formaPagamento.toUpperCase()}`;
+      
+      if (formaPagamento === 'dinheiro' && troco > 0) {
+        mensagem += `\nTroco: R$ ${troco.toFixed(2)}`;
+      }
+      
+      if (formaPagamento === 'combinar') {
+        mensagem += `\nDinheiro: R$ ${dadosVenda.pagamentoDinheiro.toFixed(2)}`;
+        mensagem += `\nPIX: R$ ${dadosVenda.pagamentoPix.toFixed(2)}`;
+      }
+
+      Alert.alert('Venda Finalizada!', mensagem, [{ text: 'OK' }]);
     } catch (error) {
       Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao finalizar venda');
     }
@@ -580,16 +601,7 @@ export default function CaixaScreen() {
               Adicionar Produto ao Caixa
             </Text>
             
-            <TextInput
-              label="Quantidade"
-              value={quantidadeProduto}
-              onChangeText={setQuantidadeProduto}
-              style={styles.input}
-              mode="outlined"
-              keyboardType="numeric"
-            />
-            
-            <Text variant="titleMedium" style={styles.modalSubtitle}>
+            <Text variant="bodyMedium" style={styles.modalSubtitle}>
               Selecione um Produto:
             </Text>
             
@@ -654,11 +666,11 @@ export default function CaixaScreen() {
             
             <SegmentedButtons
               value={formaPagamento}
-              onValueChange={(value: string) => setFormaPagamento(value as 'dinheiro' | 'cartao' | 'pix')}
+              onValueChange={(value: string) => setFormaPagamento(value as 'dinheiro' | 'pix' | 'combinar')}
               buttons={[
                 { value: 'dinheiro', label: 'Dinheiro' },
-                { value: 'cartao', label: 'Cartão' },
                 { value: 'pix', label: 'PIX' },
+                { value: 'combinar', label: 'Combinar' },
               ]}
               style={styles.segmentedButtons}
             />
@@ -672,6 +684,35 @@ export default function CaixaScreen() {
                 mode="outlined"
                 keyboardType="numeric"
               />
+            )}
+            
+            {formaPagamento === 'combinar' && (
+              <>
+                <TextInput
+                  label="Valor em Dinheiro (R$)"
+                  value={pagamentoDinheiro}
+                  onChangeText={setPagamentoDinheiro}
+                  style={styles.input}
+                  mode="outlined"
+                  keyboardType="numeric"
+                />
+                <TextInput
+                  label="Valor em PIX (R$)"
+                  value={pagamentoPix}
+                  onChangeText={setPagamentoPix}
+                  style={styles.input}
+                  mode="outlined"
+                  keyboardType="numeric"
+                />
+                {pagamentoDinheiro && pagamentoPix && (
+                  <View style={styles.trocoContainer}>
+                    <Text variant="bodyMedium">Total Combinado:</Text>
+                    <Text variant="bodyLarge" style={styles.trocoValue}>
+                      R$ {((parseFloat(pagamentoDinheiro) || 0) + (parseFloat(pagamentoPix) || 0)).toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+              </>
             )}
             
             {formaPagamento === 'dinheiro' && valorRecebido && (
@@ -695,7 +736,10 @@ export default function CaixaScreen() {
                 mode="contained"
                 onPress={finalizarVenda}
                 style={styles.modalButton}
-                disabled={formaPagamento === 'dinheiro' && (!valorRecebido || parseFloat(valorRecebido) < totalFinal)}
+                disabled={
+                  (formaPagamento === 'dinheiro' && (!valorRecebido || parseFloat(valorRecebido) < totalFinal)) ||
+                  (formaPagamento === 'combinar' && (!pagamentoDinheiro || !pagamentoPix || ((parseFloat(pagamentoDinheiro) || 0) + (parseFloat(pagamentoPix) || 0)) !== totalFinal))
+                }
               >
                 Confirmar
               </Button>

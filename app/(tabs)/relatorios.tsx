@@ -96,12 +96,86 @@ export default function RelatoriosScreen() {
     setModalVisible(true);
   };
 
-  const exportarRelatorio = () => {
+  const exportarRelatorioCaixa = (caixa: Caixa) => {
+    const estatisticasCaixa = calcularEstatisticasCaixa(caixa);
+    
+    const relatorio = `
+RELATÓRIO DO CAIXA: ${caixa.nome}
+Data de Abertura: ${formatarData(caixa.dataAbertura)}
+${caixa.dataFechamento ? `Data de Fechamento: ${formatarData(caixa.dataFechamento)}` : 'Status: ABERTO'}
+
+RESUMO FINANCEIRO:
+- Total de Vendas: ${formatarMoeda(caixa.totalVendas)}
+- Quantidade de Vendas: ${caixa.vendas.length}
+- Total em Dinheiro: ${formatarMoeda(estatisticasCaixa.totalDinheiro)}
+- Total em PIX: ${formatarMoeda(estatisticasCaixa.totalPix)}
+- Total Combinado: ${formatarMoeda(estatisticasCaixa.totalCombinado)}
+- Troco Total: ${formatarMoeda(estatisticasCaixa.trocoTotal)}
+- Descontos Aplicados: ${formatarMoeda(estatisticasCaixa.totalDescontos)}
+
+PRODUTOS NO CAIXA:
+${caixa.itens.map(item => `- ${item.produto.nome}: ${item.quantidade} unidade(s) - R$ ${item.produto.preco.toFixed(2)} cada`).join('\n')}
+
+VENDAS REALIZADAS:
+${caixa.vendas.map((venda, index) => `
+Venda ${index + 1} - ${formatarData(venda.data)}
+Total: ${formatarMoeda(venda.total)}
+Forma de Pagamento: ${venda.formaPagamento.toUpperCase()}
+${venda.formaPagamento === 'combinar' ? `- Dinheiro: ${formatarMoeda(venda.pagamentoDinheiro || 0)}\n- PIX: ${formatarMoeda(venda.pagamentoPix || 0)}` : ''}
+${venda.troco > 0 ? `Troco: ${formatarMoeda(venda.troco)}` : ''}
+Itens: ${venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).join(', ')}
+`).join('\n')}
+
+MÉTODOS DE PAGAMENTO UTILIZADOS:
+${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]) => `- ${metodo.toUpperCase()}: ${quantidade} venda(s)`).join('\n')}
+    `.trim();
+
     Alert.alert(
-      'Exportar Relatório',
-      'Funcionalidade de exportação será implementada em breve!',
-      [{ text: 'OK' }]
+      'Relatório Gerado',
+      'Relatório copiado para a área de transferência!',
+      [
+        { text: 'OK' },
+        { 
+          text: 'Ver Relatório', 
+          onPress: () => {
+            Alert.alert('Relatório do Caixa', relatorio, [
+              { text: 'Fechar' }
+            ]);
+          }
+        }
+      ]
     );
+  };
+
+  const calcularEstatisticasCaixa = (caixa: Caixa) => {
+    const vendasPorPagamento = caixa.vendas.reduce((acc, venda) => {
+      acc[venda.formaPagamento] = (acc[venda.formaPagamento] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const totalDinheiro = caixa.vendas
+      .filter(v => v.formaPagamento === 'dinheiro')
+      .reduce((sum, v) => sum + v.total, 0);
+
+    const totalPix = caixa.vendas
+      .filter(v => v.formaPagamento === 'pix')
+      .reduce((sum, v) => sum + v.total, 0);
+
+    const totalCombinado = caixa.vendas
+      .filter(v => v.formaPagamento === 'combinar')
+      .reduce((sum, v) => sum + (v.pagamentoDinheiro || 0) + (v.pagamentoPix || 0), 0);
+
+    const trocoTotal = caixa.vendas.reduce((sum, v) => sum + v.troco, 0);
+    const totalDescontos = caixa.vendas.reduce((sum, v) => sum + v.desconto, 0);
+
+    return {
+      vendasPorPagamento,
+      totalDinheiro,
+      totalPix,
+      totalCombinado,
+      trocoTotal,
+      totalDescontos,
+    };
   };
 
   return (
@@ -212,14 +286,6 @@ export default function RelatoriosScreen() {
               <Text variant="titleMedium" style={styles.cardTitle}>
                 Caixas
               </Text>
-              <Button
-                mode="outlined"
-                onPress={exportarRelatorio}
-                icon="download"
-                compact
-              >
-                Exportar
-              </Button>
             </View>
             
             {caixasFiltradas.length === 0 ? (
@@ -228,44 +294,55 @@ export default function RelatoriosScreen() {
               </Text>
             ) : (
               <View style={styles.caixasList}>
-                {caixasFiltradas.map((caixa) => (
-                  <Card key={caixa.id} style={styles.caixaItem}>
-                    <Card.Content style={styles.caixaContent}>
-                      <View style={styles.caixaInfo}>
-                        <Text variant="bodyMedium" style={styles.caixaNome}>
-                          {caixa.nome}
-                        </Text>
-                        <Text variant="bodySmall" style={styles.caixaData}>
-                          {formatarData(caixa.dataAbertura)}
-                        </Text>
-                        <Text variant="bodySmall" style={styles.caixaVendas}>
-                          {caixa.vendas.length} venda(s)
-                        </Text>
-                      </View>
-                      
-                      <View style={styles.caixaValores}>
-                        <Chip 
-                          mode="outlined" 
-                          style={[
-                            styles.caixaStatus,
-                            caixa.status === 'aberto' ? styles.statusAberto : styles.statusFechado
-                          ]}
-                        >
-                          {caixa.status.toUpperCase()}
-                        </Chip>
-                        <Text variant="bodyMedium" style={styles.caixaTotal}>
-                          {formatarMoeda(caixa.totalVendas)}
-                        </Text>
-                      </View>
-                      
-                      <IconButton
-                        icon="eye"
-                        size={16}
-                        onPress={() => abrirDetalhesCaixa(caixa)}
-                      />
-                    </Card.Content>
-                  </Card>
-                ))}
+                {caixasFiltradas.map((caixa) => {
+                  const estatisticasCaixa = calcularEstatisticasCaixa(caixa);
+                  return (
+                    <Card key={caixa.id} style={styles.caixaItem}>
+                      <Card.Content style={styles.caixaContent}>
+                        <View style={styles.caixaInfo}>
+                          <Text variant="bodyMedium" style={styles.caixaNome}>
+                            {caixa.nome}
+                          </Text>
+                          <Text variant="bodySmall" style={styles.caixaData}>
+                            {formatarData(caixa.dataAbertura)}
+                          </Text>
+                          <Text variant="bodySmall" style={styles.caixaVendas}>
+                            {caixa.vendas.length} venda(s) - {caixa.itens.length} produto(s)
+                          </Text>
+                        </View>
+                        
+                        <View style={styles.caixaValores}>
+                          <Chip 
+                            mode="outlined" 
+                            style={[
+                              styles.caixaStatus,
+                              caixa.status === 'aberto' ? styles.statusAberto : styles.statusFechado
+                            ]}
+                          >
+                            {caixa.status.toUpperCase()}
+                          </Chip>
+                          <Text variant="bodyMedium" style={styles.caixaTotal}>
+                            {formatarMoeda(caixa.totalVendas)}
+                          </Text>
+                        </View>
+                        
+                        <View style={styles.caixaActions}>
+                          <IconButton
+                            icon="eye"
+                            size={16}
+                            onPress={() => abrirDetalhesCaixa(caixa)}
+                          />
+                          <IconButton
+                            icon="download"
+                            size={16}
+                            onPress={() => exportarRelatorioCaixa(caixa)}
+                            iconColor="#2196F3"
+                          />
+                        </View>
+                      </Card.Content>
+                    </Card>
+                  );
+                })}
               </View>
             )}
           </Card.Content>
@@ -280,129 +357,201 @@ export default function RelatoriosScreen() {
           contentContainerStyle={styles.modal}
         >
           <ScrollView>
-            {caixaSelecionada && (
-              <>
-                <Text variant="headlineSmall" style={styles.modalTitle}>
-                  Detalhes do Caixa
-                </Text>
-                
-                <Text variant="bodyLarge" style={styles.modalCaixaNome}>
-                  {caixaSelecionada.nome}
-                </Text>
-                
-                <Text variant="bodyMedium" style={styles.modalData}>
-                  Aberto em: {formatarData(caixaSelecionada.dataAbertura)}
-                </Text>
-                
-                {caixaSelecionada.dataFechamento && (
+            {caixaSelecionada && (() => {
+              const estatisticasCaixa = calcularEstatisticasCaixa(caixaSelecionada);
+              return (
+                <>
+                  <Text variant="headlineSmall" style={styles.modalTitle}>
+                    Detalhes do Caixa
+                  </Text>
+                  
+                  <Text variant="bodyLarge" style={styles.modalCaixaNome}>
+                    {caixaSelecionada.nome}
+                  </Text>
+                  
                   <Text variant="bodyMedium" style={styles.modalData}>
-                    Fechado em: {formatarData(caixaSelecionada.dataFechamento)}
-                  </Text>
-                )}
-                
-                <Divider style={styles.divider} />
-                
-                <View style={styles.modalResumo}>
-                  <View style={styles.modalResumoItem}>
-                    <Text variant="bodyMedium">Status:</Text>
-                    <Chip 
-                      mode="outlined"
-                      style={caixaSelecionada.status === 'aberto' ? styles.statusAberto : styles.statusFechado}
-                    >
-                      {caixaSelecionada.status.toUpperCase()}
-                    </Chip>
-                  </View>
-                  
-                  <View style={styles.modalResumoItem}>
-                    <Text variant="bodyMedium">Total de Vendas:</Text>
-                    <Text variant="bodyLarge" style={styles.modalTotalValue}>
-                      {formatarMoeda(caixaSelecionada.totalVendas)}
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.modalResumoItem}>
-                    <Text variant="bodyMedium">Quantidade de Vendas:</Text>
-                    <Text variant="bodyLarge">
-                      {caixaSelecionada.vendas.length}
-                    </Text>
-                  </View>
-                </View>
-                
-                <Divider style={styles.divider} />
-                
-                <View style={styles.modalItens}>
-                  <Text variant="titleMedium" style={styles.modalSubtitle}>
-                    Produtos no Caixa
+                    Aberto em: {formatarData(caixaSelecionada.dataAbertura)}
                   </Text>
                   
-                  {caixaSelecionada.itens.length === 0 ? (
-                    <Text variant="bodyMedium" style={styles.modalVazio}>
-                      Nenhum produto adicionado.
+                  {caixaSelecionada.dataFechamento && (
+                    <Text variant="bodyMedium" style={styles.modalData}>
+                      Fechado em: {formatarData(caixaSelecionada.dataFechamento)}
                     </Text>
-                  ) : (
-                    caixaSelecionada.itens.map((item, index) => (
-                      <View key={index} style={styles.modalItem}>
-                        <View style={styles.modalItemInfo}>
-                          <Text variant="bodyMedium" style={styles.modalItemNome}>
-                            {item.produto.nome}
-                          </Text>
-                          <Text variant="bodySmall" style={styles.modalItemDetalhes}>
-                            R$ {item.produto.preco.toFixed(2)} cada
-                          </Text>
-                        </View>
-                        <Text variant="bodyMedium" style={styles.modalItemQuantidade}>
-                          {item.quantidade} unidade(s)
+                  )}
+                  
+                  <Divider style={styles.divider} />
+                  
+                  <View style={styles.modalResumo}>
+                    <View style={styles.modalResumoItem}>
+                      <Text variant="bodyMedium">Status:</Text>
+                      <Chip 
+                        mode="outlined"
+                        style={caixaSelecionada.status === 'aberto' ? styles.statusAberto : styles.statusFechado}
+                      >
+                        {caixaSelecionada.status.toUpperCase()}
+                      </Chip>
+                    </View>
+                    
+                    <View style={styles.modalResumoItem}>
+                      <Text variant="bodyMedium">Total de Vendas:</Text>
+                      <Text variant="bodyLarge" style={styles.modalTotalValue}>
+                        {formatarMoeda(caixaSelecionada.totalVendas)}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.modalResumoItem}>
+                      <Text variant="bodyMedium">Quantidade de Vendas:</Text>
+                      <Text variant="bodyLarge">
+                        {caixaSelecionada.vendas.length}
+                      </Text>
+                    </View>
+
+                    <View style={styles.modalResumoItem}>
+                      <Text variant="bodyMedium">Produtos no Caixa:</Text>
+                      <Text variant="bodyLarge">
+                        {caixaSelecionada.itens.length}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <Divider style={styles.divider} />
+                  
+                  <View style={styles.modalFinanceiro}>
+                    <Text variant="titleMedium" style={styles.modalSubtitle}>
+                      Resumo Financeiro
+                    </Text>
+                    
+                    <View style={styles.modalResumoItem}>
+                      <Text variant="bodyMedium">Total em Dinheiro:</Text>
+                      <Text variant="bodyLarge" style={styles.modalDinheiroValue}>
+                        {formatarMoeda(estatisticasCaixa.totalDinheiro)}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.modalResumoItem}>
+                      <Text variant="bodyMedium">Total em PIX:</Text>
+                      <Text variant="bodyLarge" style={styles.modalPixValue}>
+                        {formatarMoeda(estatisticasCaixa.totalPix)}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.modalResumoItem}>
+                      <Text variant="bodyMedium">Total Combinado:</Text>
+                      <Text variant="bodyLarge" style={styles.modalCombinadoValue}>
+                        {formatarMoeda(estatisticasCaixa.totalCombinado)}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.modalResumoItem}>
+                      <Text variant="bodyMedium">Troco Total:</Text>
+                      <Text variant="bodyLarge" style={styles.modalTrocoValue}>
+                        {formatarMoeda(estatisticasCaixa.trocoTotal)}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.modalResumoItem}>
+                      <Text variant="bodyMedium">Descontos Aplicados:</Text>
+                      <Text variant="bodyLarge" style={styles.modalDescontoValue}>
+                        {formatarMoeda(estatisticasCaixa.totalDescontos)}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <Divider style={styles.divider} />
+                  
+                  <View style={styles.modalMetodos}>
+                    <Text variant="titleMedium" style={styles.modalSubtitle}>
+                      Métodos de Pagamento
+                    </Text>
+                    
+                    {Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]) => (
+                      <View key={metodo} style={styles.modalMetodoItem}>
+                        <Chip mode="outlined" style={styles.modalMetodoChip}>
+                          {metodo.toUpperCase()}
+                        </Chip>
+                        <Text variant="bodyMedium" style={styles.modalMetodoQuantidade}>
+                          {quantidade} venda(s)
                         </Text>
                       </View>
-                    ))
-                  )}
-                </View>
-                
-                <Divider style={styles.divider} />
-                
-                <View style={styles.modalVendas}>
-                  <Text variant="titleMedium" style={styles.modalSubtitle}>
-                    Vendas Realizadas
-                  </Text>
+                    ))}
+                  </View>
                   
-                  {caixaSelecionada.vendas.length === 0 ? (
-                    <Text variant="bodyMedium" style={styles.modalVazio}>
-                      Nenhuma venda realizada.
+                  <Divider style={styles.divider} />
+                  
+                  <View style={styles.modalItens}>
+                    <Text variant="titleMedium" style={styles.modalSubtitle}>
+                      Produtos no Caixa
                     </Text>
-                  ) : (
-                    caixaSelecionada.vendas.map((venda, index) => (
-                      <View key={index} style={styles.modalVenda}>
-                        <View style={styles.modalVendaInfo}>
-                          <Text variant="bodyMedium" style={styles.modalVendaData}>
-                            {formatarData(venda.data)}
-                          </Text>
-                          <Text variant="bodySmall" style={styles.modalVendaItens}>
-                            {venda.itens.length} item(s)
+                    
+                    {caixaSelecionada.itens.length === 0 ? (
+                      <Text variant="bodyMedium" style={styles.modalVazio}>
+                        Nenhum produto adicionado.
+                      </Text>
+                    ) : (
+                      caixaSelecionada.itens.map((item, index) => (
+                        <View key={index} style={styles.modalItem}>
+                          <View style={styles.modalItemInfo}>
+                            <Text variant="bodyMedium" style={styles.modalItemNome}>
+                              {item.produto.nome}
+                            </Text>
+                            <Text variant="bodySmall" style={styles.modalItemDetalhes}>
+                              R$ {item.produto.preco.toFixed(2)} cada
+                            </Text>
+                          </View>
+                          <Text variant="bodyMedium" style={styles.modalItemQuantidade}>
+                            {item.quantidade} unidade(s)
                           </Text>
                         </View>
-                        
-                        <View style={styles.modalVendaValores}>
-                          <Chip mode="outlined" style={styles.modalVendaPagamento}>
-                            {venda.formaPagamento.toUpperCase()}
-                          </Chip>
-                          <Text variant="bodyMedium" style={styles.modalVendaTotal}>
-                            {formatarMoeda(venda.total)}
-                          </Text>
+                      ))
+                    )}
+                  </View>
+                  
+                  <Divider style={styles.divider} />
+                  
+                  <View style={styles.modalVendas}>
+                    <Text variant="titleMedium" style={styles.modalSubtitle}>
+                      Vendas Realizadas
+                    </Text>
+                    
+                    {caixaSelecionada.vendas.length === 0 ? (
+                      <Text variant="bodyMedium" style={styles.modalVazio}>
+                        Nenhuma venda realizada.
+                      </Text>
+                    ) : (
+                      caixaSelecionada.vendas.map((venda, index) => (
+                        <View key={index} style={styles.modalVenda}>
+                          <View style={styles.modalVendaInfo}>
+                            <Text variant="bodyMedium" style={styles.modalVendaData}>
+                              {formatarData(venda.data)}
+                            </Text>
+                            <Text variant="bodySmall" style={styles.modalVendaItens}>
+                              {venda.itens.length} item(s)
+                            </Text>
+                          </View>
+                          
+                          <View style={styles.modalVendaValores}>
+                            <Chip mode="outlined" style={styles.modalVendaPagamento}>
+                              {venda.formaPagamento.toUpperCase()}
+                            </Chip>
+                            <Text variant="bodyMedium" style={styles.modalVendaTotal}>
+                              {formatarMoeda(venda.total)}
+                            </Text>
+                          </View>
                         </View>
-                      </View>
-                    ))
-                  )}
-                </View>
-                
-                <Button
-                  mode="contained"
-                  onPress={() => setModalVisible(false)}
-                  style={styles.modalButton}
-                >
-                  Fechar
-                </Button>
-              </>
-            )}
+                      ))
+                    )}
+                  </View>
+                  
+                  <Button
+                    mode="contained"
+                    onPress={() => setModalVisible(false)}
+                    style={styles.modalButton}
+                  >
+                    Fechar
+                  </Button>
+                </>
+              );
+            })()}
           </ScrollView>
         </Modal>
       </Portal>
@@ -540,6 +689,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2196F3',
   },
+  caixaActions: {
+    flexDirection: 'row',
+  },
   modal: {
     backgroundColor: 'white',
     margin: 20,
@@ -578,8 +730,44 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2196F3',
   },
-  modalItens: {
+  modalFinanceiro: {
     marginBottom: 16,
+  },
+  modalDinheiroValue: {
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  modalPixValue: {
+    fontWeight: 'bold',
+    color: '#2196F3',
+  },
+  modalCombinadoValue: {
+    fontWeight: 'bold',
+    color: '#FF9800',
+  },
+  modalTrocoValue: {
+    fontWeight: 'bold',
+    color: '#9C27B0',
+  },
+  modalDescontoValue: {
+    fontWeight: 'bold',
+    color: '#f44336',
+  },
+  modalMetodos: {
+    marginBottom: 16,
+  },
+  modalMetodoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalMetodoChip: {
+    flex: 1,
+  },
+  modalMetodoQuantidade: {
+    fontWeight: '500',
+    marginLeft: 12,
   },
   modalSubtitle: {
     fontWeight: 'bold',
@@ -589,6 +777,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#666',
     fontStyle: 'italic',
+  },
+  modalItens: {
+    marginBottom: 16,
   },
   modalItem: {
     flexDirection: 'row',

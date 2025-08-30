@@ -6,7 +6,6 @@ export interface Produto {
   nome: string;
   preco: number;
   estoque: number;
-  categoria: string;
   codigo: string;
   dataCadastro: string;
 }
@@ -39,7 +38,9 @@ export interface Venda {
   caixaId: string;
   itens: ItemVenda[];
   total: number;
-  formaPagamento: 'dinheiro' | 'cartao' | 'pix';
+  formaPagamento: 'dinheiro' | 'pix' | 'combinar';
+  pagamentoDinheiro?: number;
+  pagamentoPix?: number;
   data: string;
   desconto: number;
   troco: number;
