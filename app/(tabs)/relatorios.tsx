@@ -119,7 +119,7 @@ export default function RelatoriosScreen() {
             </Text>
             <SegmentedButtons
               value={filtroPeriodo}
-              onValueChange={(value) => setFiltroPeriodo(value as any)}
+              onValueChange={(value: string) => setFiltroPeriodo(value as 'hoje' | 'semana' | 'mes' | 'todos')}
               buttons={[
                 { value: 'hoje', label: 'Hoje' },
                 { value: 'semana', label: 'Semana' },
@@ -224,31 +224,33 @@ export default function RelatoriosScreen() {
             ) : (
               <View style={styles.vendasList}>
                 {vendasFiltradas.slice(0, 10).map((venda) => (
-                  <Surface key={venda.id} style={styles.vendaItem}>
-                    <View style={styles.vendaInfo}>
-                      <Text variant="bodyMedium" style={styles.vendaData}>
-                        {formatarData(venda.data)}
-                      </Text>
-                      <Text variant="bodySmall" style={styles.vendaItens}>
-                        {venda.itens.length} item(s)
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.vendaValores}>
-                      <Chip mode="outlined" style={styles.vendaPagamento}>
-                        {venda.formaPagamento.toUpperCase()}
-                      </Chip>
-                      <Text variant="bodyMedium" style={styles.vendaTotal}>
-                        {formatarMoeda(venda.total)}
-                      </Text>
-                    </View>
-                    
-                    <IconButton
-                      icon="eye"
-                      size={16}
-                      onPress={() => abrirDetalhesVenda(venda)}
-                    />
-                  </Surface>
+                  <Card key={venda.id} style={styles.vendaItem}>
+                    <Card.Content style={styles.vendaContent}>
+                      <View style={styles.vendaInfo}>
+                        <Text variant="bodyMedium" style={styles.vendaData}>
+                          {formatarData(venda.data)}
+                        </Text>
+                        <Text variant="bodySmall" style={styles.vendaItens}>
+                          {venda.itens.length} item(s)
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.vendaValores}>
+                        <Chip mode="outlined" style={styles.vendaPagamento}>
+                          {venda.formaPagamento.toUpperCase()}
+                        </Chip>
+                        <Text variant="bodyMedium" style={styles.vendaTotal}>
+                          {formatarMoeda(venda.total)}
+                        </Text>
+                      </View>
+                      
+                      <IconButton
+                        icon="eye"
+                        size={16}
+                        onPress={() => abrirDetalhesVenda(venda)}
+                      />
+                    </Card.Content>
+                  </Card>
                 ))}
               </View>
             )}
@@ -450,12 +452,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   vendaItem: {
+    marginBottom: 8,
+  },
+  vendaContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    elevation: 1,
+    paddingVertical: 8,
   },
   vendaInfo: {
     flex: 1,

@@ -20,7 +20,7 @@ import {
 import { Produto, useAppContext } from '../../contexts/AppContext';
 
 export default function ProdutosScreen() {
-  const { produtos, adicionarProduto, removerProduto } = useAppContext();
+  const { produtos, adicionarProduto, atualizarProduto, removerProduto } = useAppContext();
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduto, setEditingProduto] = useState<Produto | null>(null);
   
@@ -32,8 +32,6 @@ export default function ProdutosScreen() {
     codigo: '',
   });
 
-  const categorias = ['Alimentos', 'Bebidas', 'Higiene', 'Outros'];
-
   const limparFormulario = () => {
     setFormData({
       nome: '',
@@ -43,6 +41,18 @@ export default function ProdutosScreen() {
       codigo: '',
     });
     setEditingProduto(null);
+  };
+
+  const abrirModalEdicao = (produto: Produto) => {
+    setEditingProduto(produto);
+    setFormData({
+      nome: produto.nome,
+      preco: produto.preco.toString(),
+      estoque: produto.estoque.toString(),
+      categoria: produto.categoria,
+      codigo: produto.codigo,
+    });
+    setModalVisible(true);
   };
 
   const handleSubmit = () => {
@@ -59,24 +69,44 @@ export default function ProdutosScreen() {
       return;
     }
 
-    // Verificar se código já existe
-    const codigoExiste = produtos.some(p => p.codigo === formData.codigo);
-    if (codigoExiste) {
-      Alert.alert('Erro', 'Código do produto já existe!');
-      return;
-    }
+    if (editingProduto) {
+      // Verificar se código já existe (exceto para o produto sendo editado)
+      const codigoExiste = produtos.some(p => p.codigo === formData.codigo && p.id !== editingProduto.id);
+      if (codigoExiste) {
+        Alert.alert('Erro', 'Código do produto já existe!');
+        return;
+      }
 
-    adicionarProduto({
-      nome: formData.nome,
-      preco,
-      estoque,
-      categoria: formData.categoria,
-      codigo: formData.codigo,
-    });
+      atualizarProduto(editingProduto.id, {
+        nome: formData.nome,
+        preco,
+        estoque,
+        categoria: formData.categoria,
+        codigo: formData.codigo,
+      });
+
+      Alert.alert('Sucesso', 'Produto atualizado com sucesso!');
+    } else {
+      // Verificar se código já existe
+      const codigoExiste = produtos.some(p => p.codigo === formData.codigo);
+      if (codigoExiste) {
+        Alert.alert('Erro', 'Código do produto já existe!');
+        return;
+      }
+
+      adicionarProduto({
+        nome: formData.nome,
+        preco,
+        estoque,
+        categoria: formData.categoria,
+        codigo: formData.codigo,
+      });
+
+      Alert.alert('Sucesso', 'Produto cadastrado com sucesso!');
+    }
 
     limparFormulario();
     setModalVisible(false);
-    Alert.alert('Sucesso', 'Produto cadastrado com sucesso!');
   };
 
   const handleRemoverProduto = (produto: Produto) => {
@@ -95,6 +125,11 @@ export default function ProdutosScreen() {
         },
       ]
     );
+  };
+
+  const abrirModalNovo = () => {
+    limparFormulario();
+    setModalVisible(true);
   };
 
   return (
@@ -133,12 +168,20 @@ export default function ProdutosScreen() {
                       {produto.categoria}
                     </Chip>
                   </View>
-                  <IconButton
-                    icon="delete"
-                    size={20}
-                    onPress={() => handleRemoverProduto(produto)}
-                    iconColor="#f44336"
-                  />
+                  <View style={styles.produtoActions}>
+                    <IconButton
+                      icon="pencil"
+                      size={20}
+                      onPress={() => abrirModalEdicao(produto)}
+                      iconColor="#2196F3"
+                    />
+                    <IconButton
+                      icon="delete"
+                      size={20}
+                      onPress={() => handleRemoverProduto(produto)}
+                      iconColor="#f44336"
+                    />
+                  </View>
                 </View>
                 
                 <Divider style={styles.divider} />
@@ -194,13 +237,13 @@ export default function ProdutosScreen() {
         >
           <ScrollView>
             <Text variant="headlineSmall" style={styles.modalTitle}>
-              Cadastrar Produto
+              {editingProduto ? 'Editar Produto' : 'Cadastrar Produto'}
             </Text>
             
             <TextInput
               label="Nome do Produto *"
               value={formData.nome}
-              onChangeText={(text) => setFormData({ ...formData, nome: text })}
+              onChangeText={(text: string) => setFormData({ ...formData, nome: text })}
               style={styles.input}
               mode="outlined"
             />
@@ -208,7 +251,7 @@ export default function ProdutosScreen() {
             <TextInput
               label="Código do Produto *"
               value={formData.codigo}
-              onChangeText={(text) => setFormData({ ...formData, codigo: text.toUpperCase() })}
+              onChangeText={(text: string) => setFormData({ ...formData, codigo: text.toUpperCase() })}
               style={styles.input}
               mode="outlined"
               autoCapitalize="characters"
@@ -217,7 +260,7 @@ export default function ProdutosScreen() {
             <TextInput
               label="Preço (R$) *"
               value={formData.preco}
-              onChangeText={(text) => setFormData({ ...formData, preco: text })}
+              onChangeText={(text: string) => setFormData({ ...formData, preco: text })}
               style={styles.input}
               mode="outlined"
               keyboardType="numeric"
@@ -226,28 +269,20 @@ export default function ProdutosScreen() {
             <TextInput
               label="Quantidade em Estoque *"
               value={formData.estoque}
-              onChangeText={(text) => setFormData({ ...formData, estoque: text })}
+              onChangeText={(text: string) => setFormData({ ...formData, estoque: text })}
               style={styles.input}
               mode="outlined"
               keyboardType="numeric"
             />
             
-            <Text variant="bodyMedium" style={styles.categoriaLabel}>
-              Categoria *
-            </Text>
-            <View style={styles.categoriasContainer}>
-              {categorias.map((categoria) => (
-                <Chip
-                  key={categoria}
-                  selected={formData.categoria === categoria}
-                  onPress={() => setFormData({ ...formData, categoria })}
-                  style={styles.categoriaChip}
-                  mode="outlined"
-                >
-                  {categoria}
-                </Chip>
-              ))}
-            </View>
+            <TextInput
+              label="Categoria *"
+              value={formData.categoria}
+              onChangeText={(text: string) => setFormData({ ...formData, categoria: text })}
+              style={styles.input}
+              mode="outlined"
+              placeholder="Ex: Bebidas, Alimentos, etc."
+            />
             
             <View style={styles.modalButtons}>
               <Button
@@ -265,7 +300,7 @@ export default function ProdutosScreen() {
                 onPress={handleSubmit}
                 style={styles.modalButton}
               >
-                Cadastrar
+                {editingProduto ? 'Atualizar' : 'Cadastrar'}
               </Button>
             </View>
           </ScrollView>
@@ -275,7 +310,7 @@ export default function ProdutosScreen() {
       <FAB
         icon="plus"
         style={styles.fab}
-        onPress={() => setModalVisible(true)}
+        onPress={abrirModalNovo}
       />
     </View>
   );
@@ -330,6 +365,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
   },
+  produtoActions: {
+    flexDirection: 'row',
+  },
   categoriaChip: {
     alignSelf: 'flex-start',
   },
@@ -375,16 +413,6 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 16,
-  },
-  categoriaLabel: {
-    marginBottom: 8,
-    color: '#666',
-  },
-  categoriasContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
   },
   modalButtons: {
     flexDirection: 'row',

@@ -15,7 +15,6 @@ import {
     Modal,
     Portal,
     SegmentedButtons,
-    Surface,
     Text,
     TextInput
 } from 'react-native-paper';
@@ -237,42 +236,44 @@ export default function CaixaScreen() {
             ) : (
               <View style={styles.itensContainer}>
                 {carrinho.map((item) => (
-                  <Surface key={item.produto.id} style={styles.itemCarrinho}>
-                    <View style={styles.itemInfo}>
-                      <Text variant="bodyMedium" style={styles.itemNome}>
-                        {item.produto.nome}
+                  <Card key={item.produto.id} style={styles.itemCarrinho}>
+                    <Card.Content>
+                      <View style={styles.itemInfo}>
+                        <Text variant="bodyMedium" style={styles.itemNome}>
+                          {item.produto.nome}
+                        </Text>
+                        <Text variant="bodySmall" style={styles.itemPreco}>
+                          R$ {item.precoUnitario.toFixed(2)} cada
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.itemControles}>
+                        <IconButton
+                          icon="minus"
+                          size={16}
+                          onPress={() => alterarQuantidade(item.produto.id, item.quantidade - 1)}
+                        />
+                        <Text variant="bodyMedium" style={styles.itemQuantidade}>
+                          {item.quantidade}
+                        </Text>
+                        <IconButton
+                          icon="plus"
+                          size={16}
+                          onPress={() => alterarQuantidade(item.produto.id, item.quantidade + 1)}
+                        />
+                        <IconButton
+                          icon="delete"
+                          size={16}
+                          onPress={() => removerItem(item.produto.id)}
+                          iconColor="#f44336"
+                        />
+                      </View>
+                      
+                      <Text variant="bodyMedium" style={styles.itemSubtotal}>
+                        R$ {item.subtotal.toFixed(2)}
                       </Text>
-                      <Text variant="bodySmall" style={styles.itemPreco}>
-                        R$ {item.precoUnitario.toFixed(2)} cada
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.itemControles}>
-                      <IconButton
-                        icon="minus"
-                        size={16}
-                        onPress={() => alterarQuantidade(item.produto.id, item.quantidade - 1)}
-                      />
-                      <Text variant="bodyMedium" style={styles.itemQuantidade}>
-                        {item.quantidade}
-                      </Text>
-                      <IconButton
-                        icon="plus"
-                        size={16}
-                        onPress={() => alterarQuantidade(item.produto.id, item.quantidade + 1)}
-                      />
-                      <IconButton
-                        icon="delete"
-                        size={16}
-                        onPress={() => removerItem(item.produto.id)}
-                        iconColor="#f44336"
-                      />
-                    </View>
-                    
-                    <Text variant="bodyMedium" style={styles.itemSubtotal}>
-                      R$ {item.subtotal.toFixed(2)}
-                    </Text>
-                  </Surface>
+                    </Card.Content>
+                  </Card>
                 ))}
               </View>
             )}
@@ -347,7 +348,7 @@ export default function CaixaScreen() {
             
             <SegmentedButtons
               value={formaPagamento}
-              onValueChange={(value) => setFormaPagamento(value as any)}
+              onValueChange={(value: string) => setFormaPagamento(value as 'dinheiro' | 'cartao' | 'pix')}
               buttons={[
                 { value: 'dinheiro', label: 'Dinheiro' },
                 { value: 'cartao', label: 'Cartão' },
@@ -455,9 +456,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   itemCarrinho: {
-    padding: 12,
-    borderRadius: 8,
-    elevation: 1,
+    marginBottom: 8,
   },
   itemInfo: {
     marginBottom: 8,
