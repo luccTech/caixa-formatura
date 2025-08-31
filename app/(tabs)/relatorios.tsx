@@ -297,7 +297,7 @@ ${venda.desconto > 0 ? `Desconto: -${formatarMoeda(venda.desconto)}\n` : ''}
 TOTAL: ${formatarMoeda(venda.total)}
 
 FORMA DE PAGAMENTO: ${venda.formaPagamento.toUpperCase()}
-${venda.formaPagamento === 'dinheiro' ? `Valor Recebido: ${formatarMoeda(parseFloat(venda.valorRecebido || '0'))}\nTroco: ${formatarMoeda(venda.troco)}` : ''}
+${venda.formaPagamento === 'dinheiro' ? `Valor Recebido: ${formatarMoeda(parseFloat(venda.total + venda.troco))}\nTroco: ${formatarMoeda(venda.troco)}` : ''}
 ${venda.formaPagamento === 'combinar' ? `Dinheiro: ${formatarMoeda(venda.pagamentoDinheiro || 0)}\nPIX: ${formatarMoeda(venda.pagamentoPix || 0)}` : ''}
 
 Obrigado pela preferência!
