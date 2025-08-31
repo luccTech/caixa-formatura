@@ -332,9 +332,9 @@ export default function CaixaScreen() {
                   onPress={handleFecharCaixa}
                   icon="close-circle"
                   buttonColor="#f44336"
-                  textColor="#f44336"
+                  textColor="#ffffff"
                 >
-                  Fechar {caixaAtual.nome}
+                  Fechar caixa
                 </Button>
               </View>
             </Card.Content>
