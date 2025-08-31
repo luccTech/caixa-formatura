@@ -369,7 +369,7 @@ Obrigado pela preferência!
                             icon="download"
                             size={16}
                             onPress={() => exportarRelatorioCaixa(caixa)}
-                            iconColor="#2196F3"
+                            iconColor="#00407B"
                           />
                           {caixa.status === 'fechado' && (
                             <IconButton
@@ -526,7 +526,7 @@ Obrigado pela preferência!
                                 icon="eye"
                                 size={16}
                                 onPress={() => exportarVendaIndividual(venda, caixaSelecionada.nome)}
-                                iconColor="#2196F3"
+                                iconColor="#00407B"
                               />
                               <IconButton
                                 icon="download"
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#00407B',
   },
   subtitle: {
     color: '#666',
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
   },
   estatisticaValor: {
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#00407B',
   },
   estatisticaLabel: {
     color: '#666',
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
   },
   caixaTotal: {
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#00407B',
   },
   caixaActions: {
     flexDirection: 'row',
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
   modalCaixaNome: {
     textAlign: 'center',
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#00407B',
     marginBottom: 8,
   },
   modalData: {
@@ -723,7 +723,7 @@ const styles = StyleSheet.create({
   },
   modalTotalValue: {
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#00407B',
   },
   modalTrocoInicialValue: {
     fontWeight: 'bold',
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
   },
   modalPixValue: {
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#00407B',
   },
   modalTrocoValue: {
     fontWeight: 'bold',
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
   },
   modalVendaTotal: {
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#00407B',
   },
   modalVendaActions: {
     flexDirection: 'row',

@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#00407B',
   },
   subtitle: {
     color: '#666',
@@ -762,7 +762,7 @@ const styles = StyleSheet.create({
   },
   itemSubtotal: {
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#00407B',
     textAlign: 'right',
   },
   resumoCard: {
@@ -791,7 +791,7 @@ const styles = StyleSheet.create({
   },
   totalValue: {
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#00407B',
   },
   finalizarButton: {
     marginTop: 16,
@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
   modalTotal: {
     textAlign: 'center',
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: '#00407B',
     marginBottom: 20,
   },
   segmentedButtons: {
