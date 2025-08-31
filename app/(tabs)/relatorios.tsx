@@ -132,9 +132,6 @@ RESUMO FINANCEIRO:
 - Troco Total: ${formatarMoeda(estatisticasCaixa.trocoTotal)}
 - Descontos Aplicados: ${formatarMoeda(estatisticasCaixa.totalDescontos)}
 
-PRODUTOS NO CAIXA:
-${caixa.itens.filter(item => item.quantidade > 0).map(item => `- ${item.produto.nome}: ${item.quantidade} unidade(s) - R$ ${item.produto.preco.toFixed(2)} cada`).join('\n')}
-
 VENDAS REALIZADAS:
 ${caixa.vendas.map((venda, index) => `
 Venda ${index + 1} - ${formatarData(venda.data)}
@@ -492,38 +489,6 @@ Obrigado pela preferência!
                         {formatarMoeda(estatisticasCaixa.totalDescontos)}
                       </Text>
                     </View>
-                  </View>
-                  
-                  <Divider style={styles.divider} />
-                  
-                  <View style={styles.modalItens}>
-                    <Text variant="titleMedium" style={styles.modalSubtitle}>
-                      Produtos no Caixa
-                    </Text>
-                    
-                    {caixaSelecionada.itens.filter(item => item.quantidade > 0).length === 0 ? (
-                      <Text variant="bodyMedium" style={styles.modalVazio}>
-                        Nenhum produto foi vendido.
-                      </Text>
-                    ) : (
-                      caixaSelecionada.itens
-                        .filter(item => item.quantidade > 0)
-                        .map((item, index) => (
-                          <View key={index} style={styles.modalItem}>
-                            <View style={styles.modalItemInfo}>
-                              <Text variant="bodyMedium" style={styles.modalItemNome}>
-                                {item.produto.nome}
-                              </Text>
-                              <Text variant="bodySmall" style={styles.modalItemDetalhes}>
-                                R$ {item.produto.preco.toFixed(2)} cada
-                              </Text>
-                            </View>
-                            <Text variant="bodyMedium" style={styles.modalItemQuantidade}>
-                              {item.quantidade} unidade(s)
-                            </Text>
-                          </View>
-                        ))
-                    )}
                   </View>
                   
                   <Divider style={styles.divider} />
