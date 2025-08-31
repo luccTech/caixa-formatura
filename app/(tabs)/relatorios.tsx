@@ -103,6 +103,7 @@ export default function RelatoriosScreen() {
 RELATÓRIO DO CAIXA: ${caixa.nome}
 Data de Abertura: ${formatarData(caixa.dataAbertura)}
 ${caixa.dataFechamento ? `Data de Fechamento: ${formatarData(caixa.dataFechamento)}` : 'Status: ABERTO'}
+Troco Inicial: ${formatarMoeda(caixa.trocoInicial)}
 
 RESUMO FINANCEIRO:
 - Total de Vendas: ${formatarMoeda(caixa.totalVendas)}
@@ -400,6 +401,13 @@ ${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]
                     </View>
                     
                     <View style={styles.modalResumoItem}>
+                      <Text variant="bodyMedium">Troco Inicial:</Text>
+                      <Text variant="bodyLarge" style={styles.modalTrocoInicialValue}>
+                        {formatarMoeda(caixaSelecionada.trocoInicial)}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.modalResumoItem}>
                       <Text variant="bodyMedium">Quantidade de Vendas:</Text>
                       <Text variant="bodyLarge">
                         {caixaSelecionada.vendas.length}
@@ -661,6 +669,10 @@ const styles = StyleSheet.create({
   caixaInfo: {
     flex: 1,
   },
+  caixaLabel: {
+    fontWeight: 'bold',
+    color: '#333',
+  },
   caixaNome: {
     fontWeight: 'bold',
   },
@@ -748,6 +760,10 @@ const styles = StyleSheet.create({
   modalTrocoValue: {
     fontWeight: 'bold',
     color: '#9C27B0',
+  },
+  modalTrocoInicialValue: {
+    fontWeight: 'bold',
+    color: '#FF9800',
   },
   modalDescontoValue: {
     fontWeight: 'bold',

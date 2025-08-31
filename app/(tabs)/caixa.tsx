@@ -33,6 +33,7 @@ export default function CaixaScreen() {
   const [modalAbertura, setModalAbertura] = useState(false);
   const [modalPagamento, setModalPagamento] = useState(false);
   const [nomeCaixa, setNomeCaixa] = useState('');
+  const [trocoInicial, setTrocoInicial] = useState('');
   const [carrinho, setCarrinho] = useState<ItemVenda[]>([]);
   const [formaPagamento, setFormaPagamento] = useState<'dinheiro' | 'pix' | 'combinar'>('dinheiro');
   const [valorRecebido, setValorRecebido] = useState('');
@@ -52,15 +53,22 @@ export default function CaixaScreen() {
       return;
     }
 
+    const troco = parseFloat(trocoInicial) || 0;
+    if (troco < 0) {
+      Alert.alert('Erro', 'O troco inicial não pode ser negativo!');
+      return;
+    }
+
     if (produtos.length === 0) {
       Alert.alert('Erro', 'Não há produtos cadastrados! Cadastre produtos primeiro.');
       return;
     }
 
     try {
-      abrirCaixa(nomeCaixa);
+      abrirCaixa(nomeCaixa, troco);
       setModalAbertura(false);
       setNomeCaixa('');
+      setTrocoInicial('');
       Alert.alert('Sucesso', 'Caixa aberto com sucesso!');
     } catch (error) {
       Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao abrir caixa');
@@ -303,6 +311,9 @@ export default function CaixaScreen() {
                   <Text variant="bodyMedium" style={styles.caixaTotal}>
                     Total de Vendas: R$ {caixaAtual.totalVendas.toFixed(2)}
                   </Text>
+                  <Text variant="bodyMedium" style={styles.caixaTroco}>
+                    Troco Inicial: R$ {caixaAtual.trocoInicial.toFixed(2)}
+                  </Text>
                 </View>
                 <Button
                   mode="outlined"
@@ -311,7 +322,7 @@ export default function CaixaScreen() {
                   buttonColor="#f44336"
                   textColor="#f44336"
                 >
-                  Fechar
+                  Fechar {caixaAtual.nome}
                 </Button>
               </View>
             </Card.Content>
@@ -330,24 +341,27 @@ export default function CaixaScreen() {
                 {produtos.map((produto) => (
                   <Card key={produto.id} style={styles.produtoItem}>
                     <Card.Content>
-                      <View style={styles.produtoInfo}>
-                        <Text variant="bodyMedium" style={styles.produtoNome}>
-                          {produto.nome}
-                        </Text>
-                        <Text variant="bodySmall" style={styles.produtoPreco}>
-                          R$ {produto.preco.toFixed(2)} - Estoque: {produto.estoque}
-                        </Text>
+                      <View style={styles.produtoRow}>
+                        <View style={styles.produtoInfo}>
+                          <Text variant="bodyMedium" style={styles.produtoNome}>
+                            {produto.nome}
+                          </Text>
+                          <Text variant="bodySmall" style={styles.produtoPreco}>
+                            R$ {produto.preco.toFixed(2)} - Estoque: {produto.estoque}
+                          </Text>
+                        </View>
+                        
+                        <Button
+                          mode="contained"
+                          onPress={() => adicionarAoCarrinho(produto)}
+                          disabled={produto.estoque <= 0}
+                          style={styles.venderButton}
+                          icon="plus"
+                          compact
+                        >
+                          Vender
+                        </Button>
                       </View>
-                      
-                      <Button
-                        mode="contained"
-                        onPress={() => adicionarAoCarrinho(produto)}
-                        disabled={produto.estoque <= 0}
-                        style={styles.venderButton}
-                        icon="plus"
-                      >
-                        Vender
-                      </Button>
                     </Card.Content>
                   </Card>
                 ))}
@@ -487,6 +501,16 @@ export default function CaixaScreen() {
             style={styles.input}
             mode="outlined"
             placeholder="Ex: Caixa 1, Manhã, etc."
+          />
+
+          <TextInput
+            label="Troco Inicial (R$)"
+            value={trocoInicial}
+            onChangeText={setTrocoInicial}
+            style={styles.input}
+            mode="outlined"
+            keyboardType="numeric"
+            placeholder="0.00"
           />
           
           <View style={styles.modalButtons}>
@@ -657,6 +681,11 @@ const styles = StyleSheet.create({
   caixaTotal: {
     fontWeight: 'bold',
     color: '#4CAF50',
+    marginBottom: 4,
+  },
+  caixaTroco: {
+    fontWeight: 'bold',
+    color: '#FF9800',
   },
   produtosCard: {
     marginBottom: 16,
@@ -667,8 +696,14 @@ const styles = StyleSheet.create({
   produtoItem: {
     marginBottom: 8,
   },
+  produtoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   produtoInfo: {
-    marginBottom: 8,
+    flex: 1,
+    marginRight: 12,
   },
   produtoNome: {
     fontWeight: 'bold',
@@ -677,7 +712,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   venderButton: {
-    alignSelf: 'flex-end',
+    minWidth: 80,
   },
   carrinhoCard: {
     marginBottom: 16,

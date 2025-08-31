@@ -23,6 +23,7 @@ export interface Caixa {
   itens: ItemCaixa[];
   vendas: Venda[];
   totalVendas: number;
+  trocoInicial: number;
   status: 'aberto' | 'fechado';
 }
 
@@ -54,7 +55,7 @@ interface AppContextType {
   adicionarProduto: (produto: Omit<Produto, 'id' | 'dataCadastro'>) => void;
   atualizarProduto: (id: string, produto: Partial<Produto>) => void;
   removerProduto: (id: string) => void;
-  abrirCaixa: (nome: string) => void;
+  abrirCaixa: (nome: string, trocoInicial: number) => void;
   fecharCaixa: () => void;
   adicionarVenda: (venda: Omit<Venda, 'id'>) => void;
   buscarProdutoPorCodigo: (codigo: string) => Produto | undefined;
@@ -168,7 +169,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     salvarProdutos(novosProdutos);
   };
 
-  const abrirCaixa = (nome: string) => {
+  const abrirCaixa = (nome: string, trocoInicial: number) => {
     if (caixaAtual) {
       throw new Error('Já existe um caixa aberto!');
     }
@@ -186,6 +187,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       itens: itensCaixa,
       vendas: [],
       totalVendas: 0,
+      trocoInicial,
       status: 'aberto',
     };
 
