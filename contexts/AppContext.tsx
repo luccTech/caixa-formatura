@@ -1,5 +1,19 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  setDoc,
+  deleteDoc,
+  addDoc,
+  getDoc,
+  updateDoc,
+  where,
+  getDocs,
+  writeBatch
+} from 'firebase/firestore';
+import { db } from '../firebaseConfig'; // Verifique o caminho para o seu arquivo de configuração
 
 export interface Produto {
   id: string;
@@ -52,15 +66,15 @@ interface AppContextType {
   caixas: Caixa[];
   caixaAtual: Caixa | null;
   vendas: Venda[];
-  adicionarProduto: (produto: Omit<Produto, 'id' | 'dataCadastro'>) => void;
-  atualizarProduto: (id: string, produto: Partial<Produto>) => void;
-  removerProduto: (id: string) => void;
-  abrirCaixa: (nome: string, trocoInicial: number) => void;
-  fecharCaixa: () => void;
-  excluirCaixa: (caixaId: string) => void;
-  adicionarVenda: (venda: Omit<Venda, 'id'>) => void;
-  buscarProdutoPorCodigo: (codigo: string) => Produto | undefined;
-  atualizarEstoque: (produtoId: string, quantidade: number) => void;
+  adicionarProduto: (produto: Omit<Produto, 'id' | 'dataCadastro'>) => Promise<void>;
+  atualizarProduto: (id: string, produto: Partial<Produto>) => Promise<void>;
+  removerProduto: (id: string) => Promise<void>;
+  abrirCaixa: (nome: string, trocoInicial: number) => Promise<void>;
+  fecharCaixa: () => Promise<void>;
+  excluirCaixa: (caixaId: string) => Promise<void>;
+  adicionarVenda: (venda: Omit<Venda, 'id'>) => Promise<void>;
+  buscarProdutoPorCodigo: (codigo: string) => Promise<Produto | undefined>;
+  atualizarEstoque: (produtoId: string, quantidade: number) => Promise<void>;
   getVendasPorCaixa: (caixaId: string) => Venda[];
 }
 
@@ -84,228 +98,164 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [caixaAtual, setCaixaAtual] = useState<Caixa | null>(null);
   const [vendas, setVendas] = useState<Venda[]>([]);
 
-  // Carregar dados salvos
   useEffect(() => {
-    carregarDados();
+    const produtosRef = collection(db, 'produtos');
+    const caixasRef = collection(db, 'caixas');
+    const vendasRef = collection(db, 'vendas');
+
+    const unsubscribeProdutos = onSnapshot(produtosRef, (snapshot) => {
+      const produtosData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Produto[];
+      setProdutos(produtosData);
+    });
+
+    const unsubscribeCaixas = onSnapshot(caixasRef, (snapshot) => {
+      const caixasData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Caixa[];
+      setCaixas(caixasData);
+      const caixaAberto = caixasData.find(c => c.status === 'aberto');
+      setCaixaAtual(caixaAberto || null);
+    });
+
+    const unsubscribeVendas = onSnapshot(vendasRef, (snapshot) => {
+      const vendasData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Venda[];
+      setVendas(vendasData);
+    });
+
+    return () => {
+      unsubscribeProdutos();
+      unsubscribeCaixas();
+      unsubscribeVendas();
+    };
   }, []);
 
-  const carregarDados = async () => {
+  const adicionarProduto = async (produto: Omit<Produto, 'id' | 'dataCadastro'>) => {
     try {
-      const produtosSalvos = await AsyncStorage.getItem('produtos');
-      const caixasSalvas = await AsyncStorage.getItem('caixas');
-      const vendasSalvas = await AsyncStorage.getItem('vendas');
-      const caixaAtualSalvo = await AsyncStorage.getItem('caixaAtual');
+      const novoProduto = {
+        ...produto,
+        dataCadastro: new Date().toISOString(),
+      };
+      await addDoc(collection(db, 'produtos'), novoProduto);
+    } catch (e) {
+      console.error('Erro ao adicionar produto: ', e);
+    }
+  };
+
+  const atualizarProduto = async (id: string, produto: Partial<Produto>) => {
+    try {
+      const produtoRef = doc(db, 'produtos', id);
+      await updateDoc(produtoRef, produto);
+    } catch (e) {
+      console.error('Erro ao atualizar produto: ', e);
+    }
+  };
+
+  const removerProduto = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'produtos', id));
+    } catch (e) {
+      console.error('Erro ao remover produto: ', e);
+    }
+  };
+
+  const abrirCaixa = async (nome: string, trocoInicial: number) => {
+    try {
+      const caixaAbertoExistente = caixas.find(c => c.status === 'aberto');
+      if (caixaAbertoExistente) {
+        throw new Error('Já existe um caixa aberto!');
+      }
+
+      const novoCaixa: Caixa = {
+        id: '', // será gerado pelo Firestore
+        nome,
+        dataAbertura: new Date().toISOString(),
+        itens: produtos.map(p => ({ produto: p, quantidade: 0 })),
+        vendas: [],
+        totalVendas: 0,
+        trocoInicial,
+        status: 'aberto',
+      };
+      await addDoc(collection(db, 'caixas'), novoCaixa);
+    } catch (e) {
+      console.error('Erro ao abrir caixa:', e);
+    }
+  };
+
+  const fecharCaixa = async () => {
+    if (!caixaAtual) return;
+    try {
+      const caixaRef = doc(db, 'caixas', caixaAtual.id);
+      await updateDoc(caixaRef, {
+        dataFechamento: new Date().toISOString(),
+        status: 'fechado',
+      });
+    } catch (e) {
+      console.error('Erro ao fechar caixa:', e);
+    }
+  };
+
+  const excluirCaixa = async (caixaId: string) => {
+    try {
+      const caixaParaExcluir = caixas.find(c => c.id === caixaId);
+      if (!caixaParaExcluir) {
+        throw new Error('Caixa não encontrado!');
+      }
+      if (caixaParaExcluir.status === 'aberto') {
+        throw new Error('Não é possível excluir um caixa aberto!');
+      }
+
+      const vendasDoCaixaQuery = query(collection(db, 'vendas'), where('caixaId', '==', caixaId));
+      const vendasSnapshot = await getDocs(vendasDoCaixaQuery);
       
-      if (produtosSalvos) {
-        setProdutos(JSON.parse(produtosSalvos));
-      }
-      if (caixasSalvas) {
-        const caixasCarregadas = JSON.parse(caixasSalvas);
-        // Migração: adicionar trocoInicial para caixas antigos
-        const caixasMigradas = caixasCarregadas.map((caixa: any) => ({
-          ...caixa,
-          trocoInicial: caixa.trocoInicial || 0,
-        }));
-        setCaixas(caixasMigradas);
-        // Salvar versão migrada
-        await AsyncStorage.setItem('caixas', JSON.stringify(caixasMigradas));
-      }
-      if (vendasSalvas) {
-        setVendas(JSON.parse(vendasSalvas));
-      }
-      if (caixaAtualSalvo) {
-        const caixaAtualCarregado = JSON.parse(caixaAtualSalvo);
-        // Migração: adicionar trocoInicial para caixa atual
-        if (caixaAtualCarregado) {
-          const caixaAtualMigrado = {
-            ...caixaAtualCarregado,
-            trocoInicial: caixaAtualCarregado.trocoInicial || 0,
-          };
-          setCaixaAtual(caixaAtualMigrado);
-          // Salvar versão migrada
-          await AsyncStorage.setItem('caixaAtual', JSON.stringify(caixaAtualMigrado));
-        } else {
-          setCaixaAtual(null);
-        }
-      }
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      const batch = writeBatch(db);
+      
+      vendasSnapshot.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      
+      batch.delete(doc(db, 'caixas', caixaId));
+      await batch.commit();
+    } catch (e) {
+      console.error('Erro ao excluir caixa:', e);
     }
   };
 
-  const salvarProdutos = async (novosProdutos: Produto[]) => {
+  const adicionarVenda = async (venda: Omit<Venda, 'id'>) => {
+    if (!caixaAtual) return;
     try {
-      await AsyncStorage.setItem('produtos', JSON.stringify(novosProdutos));
-    } catch (error) {
-      console.error('Erro ao salvar produtos:', error);
+      const novaVenda = { ...venda, caixaId: caixaAtual.id };
+      const vendaRef = await addDoc(collection(db, 'vendas'), novaVenda);
+
+      const caixaRef = doc(db, 'caixas', caixaAtual.id);
+      await updateDoc(caixaRef, {
+        vendas: [...caixaAtual.vendas, { ...novaVenda, id: vendaRef.id }],
+        totalVendas: caixaAtual.totalVendas + novaVenda.total,
+      });
+    } catch (e) {
+      console.error('Erro ao adicionar venda:', e);
     }
   };
+  
+  const buscarProdutoPorCodigo = async (codigo: string) => {
+    const q = query(collection(db, 'produtos'), where('codigo', '==', codigo));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const docData = querySnapshot.docs[0];
+      return { id: docData.id, ...docData.data() } as Produto;
+    }
+    return undefined;
+  };
 
-  const salvarCaixas = async (novasCaixas: Caixa[]) => {
+  const atualizarEstoque = async (produtoId: string, quantidade: number) => {
     try {
-      await AsyncStorage.setItem('caixas', JSON.stringify(novasCaixas));
-    } catch (error) {
-      console.error('Erro ao salvar caixas:', error);
+      const produtoRef = doc(db, 'produtos', produtoId);
+      const produtoSnap = await getDoc(produtoRef);
+      if (produtoSnap.exists()) {
+        const produtoData = produtoSnap.data() as Produto;
+        const novoEstoque = Math.max(0, produtoData.estoque - quantidade);
+        await updateDoc(produtoRef, { estoque: novoEstoque });
+      }
+    } catch (e) {
+      console.error('Erro ao atualizar estoque:', e);
     }
-  };
-
-  const salvarVendas = async (novasVendas: Venda[]) => {
-    try {
-      await AsyncStorage.setItem('vendas', JSON.stringify(novasVendas));
-    } catch (error) {
-      console.error('Erro ao salvar vendas:', error);
-    }
-  };
-
-  const salvarCaixaAtual = async (caixa: Caixa | null) => {
-    try {
-      await AsyncStorage.setItem('caixaAtual', JSON.stringify(caixa));
-    } catch (error) {
-      console.error('Erro ao salvar caixa atual:', error);
-    }
-  };
-
-  const adicionarProduto = (produto: Omit<Produto, 'id' | 'dataCadastro'>) => {
-    const novoProduto: Produto = {
-      ...produto,
-      id: Date.now().toString(),
-      dataCadastro: new Date().toISOString(),
-    };
-    const novosProdutos = [...produtos, novoProduto];
-    setProdutos(novosProdutos);
-    salvarProdutos(novosProdutos);
-  };
-
-  const atualizarProduto = (id: string, produto: Partial<Produto>) => {
-    const novosProdutos = produtos.map(p => 
-      p.id === id ? { ...p, ...produto } : p
-    );
-    setProdutos(novosProdutos);
-    salvarProdutos(novosProdutos);
-  };
-
-  const removerProduto = (id: string) => {
-    const novosProdutos = produtos.filter(p => p.id !== id);
-    setProdutos(novosProdutos);
-    salvarProdutos(novosProdutos);
-  };
-
-  const abrirCaixa = (nome: string, trocoInicial: number) => {
-    if (caixaAtual) {
-      throw new Error('Já existe um caixa aberto!');
-    }
-
-    // Criar itens do caixa com todos os produtos existentes (quantidade 0)
-    const itensCaixa: ItemCaixa[] = produtos.map(produto => ({
-      produto,
-      quantidade: 0,
-    }));
-
-    const novoCaixa: Caixa = {
-      id: Date.now().toString(),
-      nome,
-      dataAbertura: new Date().toISOString(),
-      itens: itensCaixa,
-      vendas: [],
-      totalVendas: 0,
-      trocoInicial,
-      status: 'aberto',
-    };
-
-    const novasCaixas = [...caixas, novoCaixa];
-    setCaixas(novasCaixas);
-    setCaixaAtual(novoCaixa);
-    salvarCaixas(novasCaixas);
-    salvarCaixaAtual(novoCaixa);
-  };
-
-  const fecharCaixa = () => {
-    if (!caixaAtual) {
-      throw new Error('Nenhum caixa está aberto!');
-    }
-
-    const caixaFechado: Caixa = {
-      ...caixaAtual,
-      dataFechamento: new Date().toISOString(),
-      status: 'fechado',
-    };
-
-    const novasCaixas = caixas.map(c => 
-      c.id === caixaAtual.id ? caixaFechado : c
-    );
-
-    setCaixas(novasCaixas);
-    setCaixaAtual(null);
-    salvarCaixas(novasCaixas);
-    salvarCaixaAtual(null);
-  };
-
-  const excluirCaixa = (caixaId: string) => {
-    const caixaParaExcluir = caixas.find(c => c.id === caixaId);
-    if (!caixaParaExcluir) {
-      throw new Error('Caixa não encontrado!');
-    }
-
-    if (caixaParaExcluir.status === 'aberto') {
-      throw new Error('Não é possível excluir um caixa aberto!');
-    }
-
-    // Remover o caixa
-    const novasCaixas = caixas.filter(c => c.id !== caixaId);
-    setCaixas(novasCaixas);
-
-    // Remover as vendas associadas ao caixa
-    const novasVendas = vendas.filter(v => v.caixaId !== caixaId);
-    setVendas(novasVendas);
-
-    salvarCaixas(novasCaixas);
-    salvarVendas(novasVendas);
-  };
-
-  const adicionarVenda = (venda: Omit<Venda, 'id'>) => {
-    if (!caixaAtual) {
-      throw new Error('Nenhum caixa está aberto!');
-    }
-
-    const novaVenda: Venda = {
-      ...venda,
-      id: Date.now().toString(),
-    };
-
-    const novasVendas = [...vendas, novaVenda];
-    setVendas(novasVendas);
-
-    // Atualizar caixa atual
-    const caixaAtualizado = {
-      ...caixaAtual,
-      vendas: [...caixaAtual.vendas, novaVenda],
-      totalVendas: caixaAtual.totalVendas + novaVenda.total,
-    };
-    setCaixaAtual(caixaAtualizado);
-
-    // Atualizar caixas
-    const novasCaixas = caixas.map(c => 
-      c.id === caixaAtual.id ? caixaAtualizado : c
-    );
-    setCaixas(novasCaixas);
-
-    salvarVendas(novasVendas);
-    salvarCaixas(novasCaixas);
-    salvarCaixaAtual(caixaAtualizado);
-  };
-
-  const buscarProdutoPorCodigo = (codigo: string) => {
-    return produtos.find(p => p.codigo === codigo);
-  };
-
-  const atualizarEstoque = (produtoId: string, quantidade: number) => {
-    const novosProdutos = produtos.map(p => 
-      p.id === produtoId 
-        ? { ...p, estoque: Math.max(0, p.estoque - quantidade) }
-        : p
-    );
-    setProdutos(novosProdutos);
-    salvarProdutos(novosProdutos);
   };
 
   const getVendasPorCaixa = (caixaId: string) => {
@@ -334,4 +284,4 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       {children}
     </AppContext.Provider>
   );
-}; 
+};
