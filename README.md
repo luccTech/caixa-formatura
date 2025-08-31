@@ -1,6 +1,6 @@
-# Sistema de Caixa - Formatura
+# Sistema de Caixa - Formatura 4° Informatica 2025
 
-Um sistema de caixa profissional desenvolvido em React Native com Expo, para gerenciamento de produtos e vendas.
+Um sistema de caixa profissional desenvolvido em React Native com Expo, para gerenciamento de produtos e vendas e otimizar nosso controle de caixa da formatura!!!!!
 
 ## 🚀 Funcionalidades
 
@@ -131,10 +131,3 @@ caixa-formatura/
 - [ ] Impressão de comprovantes
 - [ ] Integração com impressoras térmicas
 
-## 📞 Suporte
-
-Para dúvidas ou problemas, entre em contato através dos canais de suporte.
-
----
-
-**Desenvolvido com ❤️ para facilitar o gerenciamento de vendas**
