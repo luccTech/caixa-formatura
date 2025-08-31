@@ -1,3 +1,6 @@
+import * as Clipboard from 'expo-clipboard';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import React, { useMemo, useState } from 'react';
 import {
     Alert,
@@ -115,6 +118,121 @@ export default function RelatoriosScreen() {
     );
   };
 
+  const copiarParaClipboard = async (texto: string) => {
+    try {
+      await Clipboard.setStringAsync(texto);
+      Alert.alert('Sucesso', 'Conteúdo copiado para a área de transferência!');
+    } catch (error) {
+      Alert.alert('Erro', 'Erro ao copiar para a área de transferência');
+    }
+  };
+
+  const exportarParaExcel = (caixa: Caixa) => {
+    const estatisticasCaixa = calcularEstatisticasCaixa(caixa);
+    
+    // Formato CSV para Excel/Google Sheets
+    const csvContent = `RELATÓRIO DO CAIXA: ${caixa.nome}
+Data de Abertura,${formatarData(caixa.dataAbertura)}
+${caixa.dataFechamento ? `Data de Fechamento,${formatarData(caixa.dataFechamento)}` : 'Status,ABERTO'}
+Troco Inicial,${formatarMoeda(caixa.trocoInicial || 0)}
+
+RESUMO FINANCEIRO
+Total de Vendas,${formatarMoeda(caixa.totalVendas)}
+Quantidade de Vendas,${caixa.vendas.length}
+Total em Dinheiro,${formatarMoeda(estatisticasCaixa.totalDinheiro)}
+Total em PIX,${formatarMoeda(estatisticasCaixa.totalPix)}
+Troco Total,${formatarMoeda(estatisticasCaixa.trocoTotal)}
+Descontos Aplicados,${formatarMoeda(estatisticasCaixa.totalDescontos)}
+
+VENDAS REALIZADAS
+Número,Data,Total,Forma de Pagamento,Itens
+${caixa.vendas.map((venda, index) => {
+  const itens = venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).join('; ');
+  return `${index + 1},${formatarData(venda.data)},${formatarMoeda(venda.total)},${venda.formaPagamento.toUpperCase()},${itens}`;
+}).join('\n')}`;
+
+    Alert.alert(
+      'Exportar para Excel/Google Sheets',
+      'Escolha uma opção:',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Copiar CSV', 
+          onPress: () => copiarParaClipboard(csvContent)
+        },
+        { 
+          text: 'Compartilhar Arquivo', 
+          onPress: async () => {
+            try {
+              const htmlContent = `
+                <html>
+                  <head>
+                    <meta charset="utf-8">
+                    <title>Relatório - ${caixa.nome}</title>
+                    <style>
+                      body { font-family: Arial, sans-serif; margin: 20px; }
+                      table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                      th { background-color: #00407B; color: white; }
+                      .header { background-color: #f0f0f0; font-weight: bold; }
+                    </style>
+                  </head>
+                  <body>
+                    <h1>RELATÓRIO DO CAIXA: ${caixa.nome}</h1>
+                    <p><strong>Data de Abertura:</strong> ${formatarData(caixa.dataAbertura)}</p>
+                    ${caixa.dataFechamento ? `<p><strong>Data de Fechamento:</strong> ${formatarData(caixa.dataFechamento)}</p>` : '<p><strong>Status:</strong> ABERTO</p>'}
+                    <p><strong>Troco Inicial:</strong> ${formatarMoeda(caixa.trocoInicial || 0)}</p>
+                    
+                    <h2>RESUMO FINANCEIRO</h2>
+                    <table>
+                      <tr><td>Total de Vendas</td><td>${formatarMoeda(caixa.totalVendas)}</td></tr>
+                      <tr><td>Quantidade de Vendas</td><td>${caixa.vendas.length}</td></tr>
+                      <tr><td>Total em Dinheiro</td><td>${formatarMoeda(estatisticasCaixa.totalDinheiro)}</td></tr>
+                      <tr><td>Total em PIX</td><td>${formatarMoeda(estatisticasCaixa.totalPix)}</td></tr>
+                      <tr><td>Troco Total</td><td>${formatarMoeda(estatisticasCaixa.trocoTotal)}</td></tr>
+                      <tr><td>Descontos Aplicados</td><td>${formatarMoeda(estatisticasCaixa.totalDescontos)}</td></tr>
+                    </table>
+                    
+                    <h2>VENDAS REALIZADAS</h2>
+                    <table>
+                      <tr class="header">
+                        <th>Número</th>
+                        <th>Data</th>
+                        <th>Total</th>
+                        <th>Forma de Pagamento</th>
+                        <th>Itens</th>
+                      </tr>
+                      ${caixa.vendas.map((venda, index) => {
+                        const itens = venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).join(', ');
+                        return `
+                          <tr>
+                            <td>${index + 1}</td>
+                            <td>${formatarData(venda.data)}</td>
+                            <td>${formatarMoeda(venda.total)}</td>
+                            <td>${venda.formaPagamento.toUpperCase()}</td>
+                            <td>${itens}</td>
+                          </tr>
+                        `;
+                      }).join('')}
+                    </table>
+                  </body>
+                </html>
+              `;
+              
+              const { uri } = await Print.printToFileAsync({ html: htmlContent });
+              await Sharing.shareAsync(uri, {
+                mimeType: 'application/pdf',
+                dialogTitle: `Relatório - ${caixa.nome}`,
+              });
+            } catch (error) {
+              Alert.alert('Erro', 'Erro ao gerar arquivo para compartilhamento');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const exportarRelatorioCaixa = (caixa: Caixa) => {
     const estatisticasCaixa = calcularEstatisticasCaixa(caixa);
     
@@ -145,9 +263,13 @@ Itens: ${venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).joi
 
     Alert.alert(
       'Relatório Gerado',
-      'Relatório copiado para a área de transferência!',
+      'Escolha uma opção:',
       [
-        { text: 'OK' },
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Copiar Texto', 
+          onPress: () => copiarParaClipboard(relatorio)
+        },
         { 
           text: 'Ver Relatório', 
           onPress: () => {
@@ -160,7 +282,7 @@ Itens: ${venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).joi
     );
   };
 
-  const exportarVendaIndividual = (venda: any, caixaNome: string) => {
+  const exportarVendaIndividual = async (venda: any, caixaNome: string) => {
     const notaFiscal = `
 NOTA FISCAL - VENDA ${venda.id.slice(-4).toUpperCase()}
 Caixa: ${caixaNome}
@@ -183,9 +305,13 @@ Obrigado pela preferência!
 
     Alert.alert(
       'Nota Fiscal Gerada',
-      'Nota fiscal copiada para a área de transferência!',
+      'Escolha uma opção:',
       [
-        { text: 'OK' },
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Copiar Nota', 
+          onPress: () => copiarParaClipboard(notaFiscal)
+        },
         { 
           text: 'Ver Nota Fiscal', 
           onPress: () => {
@@ -371,6 +497,12 @@ Obrigado pela preferência!
                             onPress={() => exportarRelatorioCaixa(caixa)}
                             iconColor="#00407B"
                           />
+                          <IconButton
+                            icon="table"
+                            size={16}
+                            onPress={() => exportarParaExcel(caixa)}
+                            iconColor="#4CAF50"
+                          />
                           {caixa.status === 'fechado' && (
                             <IconButton
                               icon="delete"
@@ -541,13 +673,23 @@ Obrigado pela preferência!
                     )}
                   </View>
                   
-                  <Button
-                    mode="contained"
-                    onPress={() => setModalVisible(false)}
-                    style={styles.modalButton}
-                  >
-                    Fechar
-                  </Button>
+                  <View style={styles.modalButtons}>
+                    <Button
+                      mode="outlined"
+                      onPress={() => exportarParaExcel(caixaSelecionada)}
+                      style={styles.modalButton}
+                      icon="table"
+                    >
+                      Exportar Excel
+                    </Button>
+                    <Button
+                      mode="contained"
+                      onPress={() => setModalVisible(false)}
+                      style={styles.modalButton}
+                    >
+                      Fechar
+                    </Button>
+                  </View>
                 </>
               );
             })()}
@@ -814,6 +956,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   modalButton: {
+    marginTop: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
     marginTop: 16,
   },
 });
