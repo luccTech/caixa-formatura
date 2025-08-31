@@ -456,7 +456,7 @@ Obrigado pela preferência!
                 {caixasFiltradas.map((caixa) => {
                   const estatisticasCaixa = calcularEstatisticasCaixa(caixa);
                   return (
-                    <Card key={caixa.id} style={styles.caixaItem}>
+                    <Card key={caixa.id} style={styles.caixaItem} onPress={() => abrirDetalhesCaixa(caixa)}>
                       <Card.Content style={styles.caixaContent}>
                         <View style={styles.caixaInfo}>
                           <Text variant="bodyMedium" style={styles.caixaNome}>
@@ -466,7 +466,7 @@ Obrigado pela preferência!
                             {formatarData(caixa.dataAbertura)}
                           </Text>
                           <Text variant="bodySmall" style={styles.caixaVendas}>
-                            {caixa.vendas.length} venda(s) - {caixa.itens.length} produto(s)
+                            {caixa.vendas.length} venda(s) {"\n"}{caixa.itens.length} produto(s)
                           </Text>
                         </View>
                         
@@ -486,23 +486,14 @@ Obrigado pela preferência!
                         </View>
                         
                         <View style={styles.caixaActions}>
-                          <IconButton
-                            icon="eye"
-                            size={16}
-                            onPress={() => abrirDetalhesCaixa(caixa)}
-                          />
+
                           <IconButton
                             icon="download"
                             size={16}
                             onPress={() => exportarRelatorioCaixa(caixa)}
                             iconColor="#00407B"
                           />
-                          <IconButton
-                            icon="table"
-                            size={16}
-                            onPress={() => exportarParaExcel(caixa)}
-                            iconColor="#4CAF50"
-                          />
+                          
                           {caixa.status === 'fechado' && (
                             <IconButton
                               icon="delete"
