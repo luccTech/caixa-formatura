@@ -57,6 +57,7 @@ interface AppContextType {
   removerProduto: (id: string) => void;
   abrirCaixa: (nome: string, trocoInicial: number) => void;
   fecharCaixa: () => void;
+  excluirCaixa: (caixaId: string) => void;
   adicionarVenda: (venda: Omit<Venda, 'id'>) => void;
   buscarProdutoPorCodigo: (codigo: string) => Produto | undefined;
   atualizarEstoque: (produtoId: string, quantidade: number) => void;
@@ -99,13 +100,33 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         setProdutos(JSON.parse(produtosSalvos));
       }
       if (caixasSalvas) {
-        setCaixas(JSON.parse(caixasSalvas));
+        const caixasCarregadas = JSON.parse(caixasSalvas);
+        // Migração: adicionar trocoInicial para caixas antigos
+        const caixasMigradas = caixasCarregadas.map((caixa: any) => ({
+          ...caixa,
+          trocoInicial: caixa.trocoInicial || 0,
+        }));
+        setCaixas(caixasMigradas);
+        // Salvar versão migrada
+        await AsyncStorage.setItem('caixas', JSON.stringify(caixasMigradas));
       }
       if (vendasSalvas) {
         setVendas(JSON.parse(vendasSalvas));
       }
       if (caixaAtualSalvo) {
-        setCaixaAtual(JSON.parse(caixaAtualSalvo));
+        const caixaAtualCarregado = JSON.parse(caixaAtualSalvo);
+        // Migração: adicionar trocoInicial para caixa atual
+        if (caixaAtualCarregado) {
+          const caixaAtualMigrado = {
+            ...caixaAtualCarregado,
+            trocoInicial: caixaAtualCarregado.trocoInicial || 0,
+          };
+          setCaixaAtual(caixaAtualMigrado);
+          // Salvar versão migrada
+          await AsyncStorage.setItem('caixaAtual', JSON.stringify(caixaAtualMigrado));
+        } else {
+          setCaixaAtual(null);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -219,6 +240,28 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     salvarCaixaAtual(null);
   };
 
+  const excluirCaixa = (caixaId: string) => {
+    const caixaParaExcluir = caixas.find(c => c.id === caixaId);
+    if (!caixaParaExcluir) {
+      throw new Error('Caixa não encontrado!');
+    }
+
+    if (caixaParaExcluir.status === 'aberto') {
+      throw new Error('Não é possível excluir um caixa aberto!');
+    }
+
+    // Remover o caixa
+    const novasCaixas = caixas.filter(c => c.id !== caixaId);
+    setCaixas(novasCaixas);
+
+    // Remover as vendas associadas ao caixa
+    const novasVendas = vendas.filter(v => v.caixaId !== caixaId);
+    setVendas(novasVendas);
+
+    salvarCaixas(novasCaixas);
+    salvarVendas(novasVendas);
+  };
+
   const adicionarVenda = (venda: Omit<Venda, 'id'>) => {
     if (!caixaAtual) {
       throw new Error('Nenhum caixa está aberto!');
@@ -279,6 +322,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     removerProduto,
     abrirCaixa,
     fecharCaixa,
+    excluirCaixa,
     adicionarVenda,
     buscarProdutoPorCodigo,
     atualizarEstoque,

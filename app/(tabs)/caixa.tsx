@@ -76,9 +76,14 @@ export default function CaixaScreen() {
   };
 
   const handleFecharCaixa = () => {
+    if (!caixaAtual) {
+      Alert.alert('Erro', 'Nenhum caixa está aberto!');
+      return;
+    }
+
     Alert.alert(
       'Fechar Caixa',
-      `Deseja realmente fechar o caixa "${caixaAtual?.nome}"?\n\nTotal de vendas: R$ ${caixaAtual?.totalVendas.toFixed(2) || '0.00'}`,
+      `Deseja realmente fechar o caixa "${caixaAtual.nome}"?\n\nTotal de vendas: R$ ${(caixaAtual.totalVendas || 0).toFixed(2)}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { 
@@ -170,6 +175,11 @@ export default function CaixaScreen() {
   };
 
   const finalizarVenda = () => {
+    if (!caixaAtual) {
+      Alert.alert('Erro', 'Nenhum caixa está aberto!');
+      return;
+    }
+
     if (carrinho.length === 0) {
       Alert.alert('Erro', 'Carrinho vazio!');
       return;
@@ -196,7 +206,9 @@ export default function CaixaScreen() {
 
     // Atualizar estoque
     carrinho.forEach(item => {
-      atualizarEstoque(item.produto.id, item.quantidade);
+      if (item && item.produto && item.produto.id) {
+        atualizarEstoque(item.produto.id, item.quantidade);
+      }
     });
 
     // Calcular troco
@@ -207,7 +219,7 @@ export default function CaixaScreen() {
 
     // Preparar dados da venda
     const dadosVenda: any = {
-      caixaId: caixaAtual!.id,
+      caixaId: caixaAtual.id,
       itens: carrinho,
       total: totalFinal,
       formaPagamento,
@@ -312,7 +324,7 @@ export default function CaixaScreen() {
                     Total de Vendas: R$ {caixaAtual.totalVendas.toFixed(2)}
                   </Text>
                   <Text variant="bodyMedium" style={styles.caixaTroco}>
-                    Troco Inicial: R$ {caixaAtual.trocoInicial.toFixed(2)}
+                    Troco Inicial: R$ {(caixaAtual.trocoInicial || 0).toFixed(2)}
                   </Text>
                 </View>
                 <Button

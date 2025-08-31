@@ -19,7 +19,7 @@ import {
 import { Caixa, useAppContext } from '../../contexts/AppContext';
 
 export default function RelatoriosScreen() {
-  const { caixas, vendas, getVendasPorCaixa } = useAppContext();
+  const { caixas, vendas, getVendasPorCaixa, excluirCaixa } = useAppContext();
   const [modalVisible, setModalVisible] = useState(false);
   const [caixaSelecionada, setCaixaSelecionada] = useState<Caixa | null>(null);
   const [filtroPeriodo, setFiltroPeriodo] = useState<'hoje' | 'semana' | 'mes' | 'todos'>('todos');
@@ -96,6 +96,33 @@ export default function RelatoriosScreen() {
     setModalVisible(true);
   };
 
+  const excluirCaixaComConfirmacao = (caixa: Caixa) => {
+    if (caixa.status === 'aberto') {
+      Alert.alert('Erro', 'Não é possível excluir um caixa aberto!');
+      return;
+    }
+
+    Alert.alert(
+      'Excluir Caixa',
+      `Deseja realmente excluir o caixa "${caixa.nome}"?\n\nEsta ação não pode ser desfeita e removerá:\n• O caixa e todos os seus dados\n• ${caixa.vendas.length} venda(s) registrada(s)\n• Histórico completo`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Excluir', 
+          style: 'destructive',
+          onPress: () => {
+            try {
+              excluirCaixa(caixa.id);
+              Alert.alert('Sucesso', 'Caixa excluído com sucesso!');
+            } catch (error) {
+              Alert.alert('Erro', error instanceof Error ? error.message : 'Erro ao excluir caixa');
+            }
+          }
+        },
+      ]
+    );
+  };
+
   const exportarRelatorioCaixa = (caixa: Caixa) => {
     const estatisticasCaixa = calcularEstatisticasCaixa(caixa);
     
@@ -103,7 +130,7 @@ export default function RelatoriosScreen() {
 RELATÓRIO DO CAIXA: ${caixa.nome}
 Data de Abertura: ${formatarData(caixa.dataAbertura)}
 ${caixa.dataFechamento ? `Data de Fechamento: ${formatarData(caixa.dataFechamento)}` : 'Status: ABERTO'}
-Troco Inicial: ${formatarMoeda(caixa.trocoInicial)}
+Troco Inicial: ${formatarMoeda(caixa.trocoInicial || 0)}
 
 RESUMO FINANCEIRO:
 - Total de Vendas: ${formatarMoeda(caixa.totalVendas)}
@@ -149,25 +176,39 @@ ${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]
   };
 
   const calcularEstatisticasCaixa = (caixa: Caixa) => {
+    // Verificar se caixa e vendas existem
+    if (!caixa || !caixa.vendas) {
+      return {
+        vendasPorPagamento: {},
+        totalDinheiro: 0,
+        totalPix: 0,
+        totalCombinado: 0,
+        trocoTotal: 0,
+        totalDescontos: 0,
+      };
+    }
+
     const vendasPorPagamento = caixa.vendas.reduce((acc, venda) => {
-      acc[venda.formaPagamento] = (acc[venda.formaPagamento] || 0) + 1;
+      if (venda && venda.formaPagamento) {
+        acc[venda.formaPagamento] = (acc[venda.formaPagamento] || 0) + 1;
+      }
       return acc;
     }, {} as Record<string, number>);
 
     const totalDinheiro = caixa.vendas
-      .filter(v => v.formaPagamento === 'dinheiro')
-      .reduce((sum, v) => sum + v.total, 0);
+      .filter(v => v && v.formaPagamento === 'dinheiro')
+      .reduce((sum, v) => sum + (v.total || 0), 0);
 
     const totalPix = caixa.vendas
-      .filter(v => v.formaPagamento === 'pix')
-      .reduce((sum, v) => sum + v.total, 0);
+      .filter(v => v && v.formaPagamento === 'pix')
+      .reduce((sum, v) => sum + (v.total || 0), 0);
 
     const totalCombinado = caixa.vendas
-      .filter(v => v.formaPagamento === 'combinar')
+      .filter(v => v && v.formaPagamento === 'combinar')
       .reduce((sum, v) => sum + (v.pagamentoDinheiro || 0) + (v.pagamentoPix || 0), 0);
 
-    const trocoTotal = caixa.vendas.reduce((sum, v) => sum + v.troco, 0);
-    const totalDescontos = caixa.vendas.reduce((sum, v) => sum + v.desconto, 0);
+    const trocoTotal = caixa.vendas.reduce((sum, v) => sum + (v.troco || 0), 0);
+    const totalDescontos = caixa.vendas.reduce((sum, v) => sum + (v.desconto || 0), 0);
 
     return {
       vendasPorPagamento,
@@ -339,6 +380,14 @@ ${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]
                             onPress={() => exportarRelatorioCaixa(caixa)}
                             iconColor="#2196F3"
                           />
+                          {caixa.status === 'fechado' && (
+                            <IconButton
+                              icon="delete"
+                              size={16}
+                              onPress={() => excluirCaixaComConfirmacao(caixa)}
+                              iconColor="#f44336"
+                            />
+                          )}
                         </View>
                       </Card.Content>
                     </Card>
@@ -403,7 +452,7 @@ ${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]
                     <View style={styles.modalResumoItem}>
                       <Text variant="bodyMedium">Troco Inicial:</Text>
                       <Text variant="bodyLarge" style={styles.modalTrocoInicialValue}>
-                        {formatarMoeda(caixaSelecionada.trocoInicial)}
+                        {formatarMoeda(caixaSelecionada.trocoInicial || 0)}
                       </Text>
                     </View>
                     
