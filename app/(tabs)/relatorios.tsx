@@ -29,7 +29,7 @@ export default function RelatoriosScreen() {
     const agora = new Date();
     const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
     const umaSemanaAtras = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const umMesAtras = new Date(hoje.getFullYear(), agora.getMonth() - 1, agora.getDate());
+    const umMesAtras = new Date(agora.getFullYear(), agora.getMonth() - 1, agora.getDate());
 
     return caixas.filter(caixa => {
       const dataCaixa = new Date(caixa.dataAbertura);
@@ -53,16 +53,9 @@ export default function RelatoriosScreen() {
     const caixasFechados = caixasFiltradas.filter(c => c.status === 'fechado').length;
     const totalReceita = caixasFiltradas.reduce((sum, caixa) => sum + caixa.totalVendas, 0);
     const totalVendas = caixasFiltradas.reduce((sum, caixa) => sum + caixa.vendas.length, 0);
-    
-    const vendasPorPagamento = caixasFiltradas.reduce((acc, caixa) => {
-      caixa.vendas.forEach(venda => {
-        acc[venda.formaPagamento] = (acc[venda.formaPagamento] || 0) + 1;
-      });
-      return acc;
-    }, {} as Record<string, number>);
 
     const totalDescontos = caixasFiltradas.reduce((sum, caixa) => 
-      sum + caixa.vendas.reduce((vendaSum, venda) => vendaSum + venda.desconto, 0), 0
+      sum + caixa.vendas.reduce((vendaSum, venda) => vendaSum + (venda.desconto || 0), 0), 0
     );
 
     return {
@@ -71,7 +64,6 @@ export default function RelatoriosScreen() {
       caixasFechados,
       totalReceita,
       totalVendas,
-      vendasPorPagamento,
       totalDescontos,
     };
   }, [caixasFiltradas]);
@@ -137,12 +129,11 @@ RESUMO FINANCEIRO:
 - Quantidade de Vendas: ${caixa.vendas.length}
 - Total em Dinheiro: ${formatarMoeda(estatisticasCaixa.totalDinheiro)}
 - Total em PIX: ${formatarMoeda(estatisticasCaixa.totalPix)}
-- Total Combinado: ${formatarMoeda(estatisticasCaixa.totalCombinado)}
 - Troco Total: ${formatarMoeda(estatisticasCaixa.trocoTotal)}
 - Descontos Aplicados: ${formatarMoeda(estatisticasCaixa.totalDescontos)}
 
 PRODUTOS NO CAIXA:
-${caixa.itens.map(item => `- ${item.produto.nome}: ${item.quantidade} unidade(s) - R$ ${item.produto.preco.toFixed(2)} cada`).join('\n')}
+${caixa.itens.filter(item => item.quantidade > 0).map(item => `- ${item.produto.nome}: ${item.quantidade} unidade(s) - R$ ${item.produto.preco.toFixed(2)} cada`).join('\n')}
 
 VENDAS REALIZADAS:
 ${caixa.vendas.map((venda, index) => `
@@ -153,9 +144,6 @@ ${venda.formaPagamento === 'combinar' ? `- Dinheiro: ${formatarMoeda(venda.pagam
 ${venda.troco > 0 ? `Troco: ${formatarMoeda(venda.troco)}` : ''}
 Itens: ${venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).join(', ')}
 `).join('\n')}
-
-MÉTODOS DE PAGAMENTO UTILIZADOS:
-${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]) => `- ${metodo.toUpperCase()}: ${quantidade} venda(s)`).join('\n')}
     `.trim();
 
     Alert.alert(
@@ -175,25 +163,54 @@ ${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]
     );
   };
 
+  const exportarVendaIndividual = (venda: any, caixaNome: string) => {
+    const notaFiscal = `
+NOTA FISCAL - VENDA ${venda.id.slice(-4).toUpperCase()}
+Caixa: ${caixaNome}
+Data: ${formatarData(venda.data)}
+Hora: ${new Date(venda.data).toLocaleTimeString('pt-BR')}
+
+ITENS:
+${venda.itens.map((item: any, index: number) => `${index + 1}. ${item.produto.nome}
+   ${item.quantidade}x R$ ${item.precoUnitario.toFixed(2)} = R$ ${item.subtotal.toFixed(2)}`).join('\n')}
+
+${venda.desconto > 0 ? `Desconto: -${formatarMoeda(venda.desconto)}\n` : ''}
+TOTAL: ${formatarMoeda(venda.total)}
+
+FORMA DE PAGAMENTO: ${venda.formaPagamento.toUpperCase()}
+${venda.formaPagamento === 'dinheiro' ? `Valor Recebido: ${formatarMoeda(parseFloat(venda.valorRecebido || '0'))}\nTroco: ${formatarMoeda(venda.troco)}` : ''}
+${venda.formaPagamento === 'combinar' ? `Dinheiro: ${formatarMoeda(venda.pagamentoDinheiro || 0)}\nPIX: ${formatarMoeda(venda.pagamentoPix || 0)}` : ''}
+
+Obrigado pela preferência!
+    `.trim();
+
+    Alert.alert(
+      'Nota Fiscal Gerada',
+      'Nota fiscal copiada para a área de transferência!',
+      [
+        { text: 'OK' },
+        { 
+          text: 'Ver Nota Fiscal', 
+          onPress: () => {
+            Alert.alert('Nota Fiscal', notaFiscal, [
+              { text: 'Fechar' }
+            ]);
+          }
+        }
+      ]
+    );
+  };
+
   const calcularEstatisticasCaixa = (caixa: Caixa) => {
     // Verificar se caixa e vendas existem
     if (!caixa || !caixa.vendas) {
       return {
-        vendasPorPagamento: {},
         totalDinheiro: 0,
         totalPix: 0,
-        totalCombinado: 0,
         trocoTotal: 0,
         totalDescontos: 0,
       };
     }
-
-    const vendasPorPagamento = caixa.vendas.reduce((acc, venda) => {
-      if (venda && venda.formaPagamento) {
-        acc[venda.formaPagamento] = (acc[venda.formaPagamento] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<string, number>);
 
     const totalDinheiro = caixa.vendas
       .filter(v => v && v.formaPagamento === 'dinheiro')
@@ -203,18 +220,17 @@ ${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]
       .filter(v => v && v.formaPagamento === 'pix')
       .reduce((sum, v) => sum + (v.total || 0), 0);
 
-    const totalCombinado = caixa.vendas
-      .filter(v => v && v.formaPagamento === 'combinar')
-      .reduce((sum, v) => sum + (v.pagamentoDinheiro || 0) + (v.pagamentoPix || 0), 0);
+    // Para vendas combinadas, separar os valores
+    const vendasCombinadas = caixa.vendas.filter(v => v && v.formaPagamento === 'combinar');
+    const totalDinheiroCombinado = vendasCombinadas.reduce((sum, v) => sum + (v.pagamentoDinheiro || 0), 0);
+    const totalPixCombinado = vendasCombinadas.reduce((sum, v) => sum + (v.pagamentoPix || 0), 0);
 
     const trocoTotal = caixa.vendas.reduce((sum, v) => sum + (v.troco || 0), 0);
     const totalDescontos = caixa.vendas.reduce((sum, v) => sum + (v.desconto || 0), 0);
 
     return {
-      vendasPorPagamento,
-      totalDinheiro,
-      totalPix,
-      totalCombinado,
+      totalDinheiro: totalDinheiro + totalDinheiroCombinado,
+      totalPix: totalPix + totalPixCombinado,
       trocoTotal,
       totalDescontos,
     };
@@ -295,28 +311,6 @@ ${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]
                   Receita Total
                 </Text>
               </View>
-            </View>
-          </Card.Content>
-        </Card>
-
-        {/* Formas de Pagamento */}
-        <Card style={styles.pagamentoCard}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.cardTitle}>
-              Formas de Pagamento
-            </Text>
-            
-            <View style={styles.pagamentoStats}>
-              {Object.entries(estatisticas.vendasPorPagamento).map(([forma, quantidade]) => (
-                <View key={forma} style={styles.pagamentoItem}>
-                  <Chip mode="outlined" style={styles.pagamentoChip}>
-                    {forma.toUpperCase()}
-                  </Chip>
-                  <Text variant="bodyMedium" style={styles.pagamentoQuantidade}>
-                    {quantidade} venda(s)
-                  </Text>
-                </View>
-              ))}
             </View>
           </Card.Content>
         </Card>
@@ -462,13 +456,6 @@ ${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]
                         {caixaSelecionada.vendas.length}
                       </Text>
                     </View>
-
-                    <View style={styles.modalResumoItem}>
-                      <Text variant="bodyMedium">Produtos no Caixa:</Text>
-                      <Text variant="bodyLarge">
-                        {caixaSelecionada.itens.length}
-                      </Text>
-                    </View>
                   </View>
                   
                   <Divider style={styles.divider} />
@@ -493,13 +480,6 @@ ${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]
                     </View>
                     
                     <View style={styles.modalResumoItem}>
-                      <Text variant="bodyMedium">Total Combinado:</Text>
-                      <Text variant="bodyLarge" style={styles.modalCombinadoValue}>
-                        {formatarMoeda(estatisticasCaixa.totalCombinado)}
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.modalResumoItem}>
                       <Text variant="bodyMedium">Troco Total:</Text>
                       <Text variant="bodyLarge" style={styles.modalTrocoValue}>
                         {formatarMoeda(estatisticasCaixa.trocoTotal)}
@@ -516,50 +496,33 @@ ${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]
                   
                   <Divider style={styles.divider} />
                   
-                  <View style={styles.modalMetodos}>
-                    <Text variant="titleMedium" style={styles.modalSubtitle}>
-                      Métodos de Pagamento
-                    </Text>
-                    
-                    {Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]) => (
-                      <View key={metodo} style={styles.modalMetodoItem}>
-                        <Chip mode="outlined" style={styles.modalMetodoChip}>
-                          {metodo.toUpperCase()}
-                        </Chip>
-                        <Text variant="bodyMedium" style={styles.modalMetodoQuantidade}>
-                          {quantidade} venda(s)
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                  
-                  <Divider style={styles.divider} />
-                  
                   <View style={styles.modalItens}>
                     <Text variant="titleMedium" style={styles.modalSubtitle}>
                       Produtos no Caixa
                     </Text>
                     
-                    {caixaSelecionada.itens.length === 0 ? (
+                    {caixaSelecionada.itens.filter(item => item.quantidade > 0).length === 0 ? (
                       <Text variant="bodyMedium" style={styles.modalVazio}>
-                        Nenhum produto adicionado.
+                        Nenhum produto foi vendido.
                       </Text>
                     ) : (
-                      caixaSelecionada.itens.map((item, index) => (
-                        <View key={index} style={styles.modalItem}>
-                          <View style={styles.modalItemInfo}>
-                            <Text variant="bodyMedium" style={styles.modalItemNome}>
-                              {item.produto.nome}
-                            </Text>
-                            <Text variant="bodySmall" style={styles.modalItemDetalhes}>
-                              R$ {item.produto.preco.toFixed(2)} cada
+                      caixaSelecionada.itens
+                        .filter(item => item.quantidade > 0)
+                        .map((item, index) => (
+                          <View key={index} style={styles.modalItem}>
+                            <View style={styles.modalItemInfo}>
+                              <Text variant="bodyMedium" style={styles.modalItemNome}>
+                                {item.produto.nome}
+                              </Text>
+                              <Text variant="bodySmall" style={styles.modalItemDetalhes}>
+                                R$ {item.produto.preco.toFixed(2)} cada
+                              </Text>
+                            </View>
+                            <Text variant="bodyMedium" style={styles.modalItemQuantidade}>
+                              {item.quantidade} unidade(s)
                             </Text>
                           </View>
-                          <Text variant="bodyMedium" style={styles.modalItemQuantidade}>
-                            {item.quantidade} unidade(s)
-                          </Text>
-                        </View>
-                      ))
+                        ))
                     )}
                   </View>
                   
@@ -576,23 +539,37 @@ ${Object.entries(estatisticasCaixa.vendasPorPagamento).map(([metodo, quantidade]
                       </Text>
                     ) : (
                       caixaSelecionada.vendas.map((venda, index) => (
-                        <View key={index} style={styles.modalVenda}>
+                        <View key={venda.id} style={styles.modalVenda}>
                           <View style={styles.modalVendaInfo}>
                             <Text variant="bodyMedium" style={styles.modalVendaData}>
-                              {formatarData(venda.data)}
+                              Venda {index + 1} - {formatarData(venda.data)}
                             </Text>
                             <Text variant="bodySmall" style={styles.modalVendaItens}>
-                              {venda.itens.length} item(s)
+                              {venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).join(', ')}
                             </Text>
                           </View>
                           
                           <View style={styles.modalVendaValores}>
-                            <Chip mode="outlined" style={styles.modalVendaPagamento}>
+                            <Text variant="bodySmall" style={styles.modalVendaPagamento}>
                               {venda.formaPagamento.toUpperCase()}
-                            </Chip>
+                            </Text>
                             <Text variant="bodyMedium" style={styles.modalVendaTotal}>
                               {formatarMoeda(venda.total)}
                             </Text>
+                            <View style={styles.modalVendaActions}>
+                              <IconButton
+                                icon="eye"
+                                size={16}
+                                onPress={() => exportarVendaIndividual(venda, caixaSelecionada.nome)}
+                                iconColor="#2196F3"
+                              />
+                              <IconButton
+                                icon="download"
+                                size={16}
+                                onPress={() => exportarVendaIndividual(venda, caixaSelecionada.nome)}
+                                iconColor="#4CAF50"
+                              />
+                            </View>
                           </View>
                         </View>
                       ))
@@ -644,23 +621,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   segmentedButtons: {
-    marginTop: 8,
+    marginBottom: 8,
   },
   estatisticasCard: {
     marginBottom: 16,
   },
   estatisticasGrid: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: 16,
   },
   estatisticaItem: {
-    flex: 1,
-    minWidth: '45%',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+    minWidth: '22%',
+    marginBottom: 12,
   },
   estatisticaValor: {
     fontWeight: 'bold',
@@ -669,7 +643,6 @@ const styles = StyleSheet.create({
   estatisticaLabel: {
     color: '#666',
     textAlign: 'center',
-    marginTop: 4,
   },
   pagamentoCard: {
     marginBottom: 16,
@@ -693,9 +666,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   caixasHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 12,
   },
   caixasVazio: {
@@ -704,7 +674,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   caixasList: {
-    gap: 8,
+    gap: 12,
   },
   caixaItem: {
     marginBottom: 8,
@@ -713,23 +683,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
   },
   caixaInfo: {
     flex: 1,
   },
-  caixaLabel: {
-    fontWeight: 'bold',
-    color: '#333',
-  },
   caixaNome: {
     fontWeight: 'bold',
+    marginBottom: 4,
   },
   caixaData: {
     color: '#666',
+    marginBottom: 2,
   },
   caixaVendas: {
     color: '#666',
+    fontSize: 12,
   },
   caixaValores: {
     alignItems: 'flex-end',
@@ -739,12 +707,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statusAberto: {
-    backgroundColor: '#e8f5e8',
+    backgroundColor: '#E8F5E8',
     borderColor: '#4CAF50',
   },
   statusFechado: {
-    backgroundColor: '#ffebee',
-    borderColor: '#f44336',
+    backgroundColor: '#FFF3E0',
+    borderColor: '#FF9800',
   },
   caixaTotal: {
     fontWeight: 'bold',
@@ -762,7 +730,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 20,
     fontWeight: 'bold',
   },
   modalCaixaNome: {
@@ -780,19 +748,28 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   modalResumo: {
-    gap: 8,
+    marginBottom: 16,
   },
   modalResumoItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
   modalTotalValue: {
     fontWeight: 'bold',
     color: '#2196F3',
   },
+  modalTrocoInicialValue: {
+    fontWeight: 'bold',
+    color: '#FF9800',
+  },
   modalFinanceiro: {
     marginBottom: 16,
+  },
+  modalSubtitle: {
+    fontWeight: 'bold',
+    marginBottom: 12,
   },
   modalDinheiroValue: {
     fontWeight: 'bold',
@@ -802,49 +779,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2196F3',
   },
-  modalCombinadoValue: {
-    fontWeight: 'bold',
-    color: '#FF9800',
-  },
   modalTrocoValue: {
     fontWeight: 'bold',
     color: '#9C27B0',
-  },
-  modalTrocoInicialValue: {
-    fontWeight: 'bold',
-    color: '#FF9800',
   },
   modalDescontoValue: {
     fontWeight: 'bold',
     color: '#f44336',
   },
-  modalMetodos: {
+  modalItens: {
     marginBottom: 16,
-  },
-  modalMetodoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  modalMetodoChip: {
-    flex: 1,
-  },
-  modalMetodoQuantidade: {
-    fontWeight: '500',
-    marginLeft: 12,
-  },
-  modalSubtitle: {
-    fontWeight: 'bold',
-    marginBottom: 12,
   },
   modalVazio: {
     textAlign: 'center',
     color: '#666',
     fontStyle: 'italic',
-  },
-  modalItens: {
-    marginBottom: 16,
   },
   modalItem: {
     flexDirection: 'row',
@@ -889,10 +838,15 @@ const styles = StyleSheet.create({
   },
   modalVendaPagamento: {
     marginBottom: 4,
+    color: '#666',
   },
   modalVendaTotal: {
     fontWeight: 'bold',
     color: '#2196F3',
+  },
+  modalVendaActions: {
+    flexDirection: 'row',
+    marginTop: 4,
   },
   modalButton: {
     marginTop: 16,
