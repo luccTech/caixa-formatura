@@ -24,6 +24,8 @@ import { Caixa, useAppContext } from '../../contexts/AppContext';
 export default function RelatoriosScreen() {
   const { caixas, vendas, getVendasPorCaixa, excluirCaixa } = useAppContext();
   const [modalVisible, setModalVisible] = useState(false);
+  const [notaModalVisible, setNotaModalVisible] = useState(false);
+  const [notaTexto, setNotaTexto] = useState('');
   const [caixaSelecionada, setCaixaSelecionada] = useState<Caixa | null>(null);
   const [filtroPeriodo, setFiltroPeriodo] = useState<'hoje' | 'semana' | 'mes' | 'todos'>('todos');
 
@@ -127,6 +129,29 @@ export default function RelatoriosScreen() {
     }
   };
 
+  const gerarNotaFiscal = (venda: any, caixaNome: string) => {
+    const notaFiscal = `
+NOTA FISCAL - VENDA ${venda.id ? venda.id.slice(-4).toUpperCase() : 'N/A'}
+Caixa: ${caixaNome}
+Data: ${formatarData(venda.data)}
+Hora: ${new Date(venda.data).toLocaleTimeString('pt-BR')}
+
+ITENS:
+${venda.itens.map((item: any, index: number) => `${index + 1}. ${item.produto.nome}
+    ${item.quantidade}x R$ ${item.precoUnitario.toFixed(2)} = R$ ${item.subtotal.toFixed(2)}`).join('\n')}
+
+${venda.desconto > 0 ? `Desconto: -${formatarMoeda(venda.desconto)}\n` : ''}
+TOTAL: ${formatarMoeda(venda.total)}
+
+FORMA DE PAGAMENTO: ${venda.formaPagamento.toUpperCase()}
+${venda.formaPagamento === 'dinheiro' ? `Valor Recebido: ${formatarMoeda(parseFloat(venda.total + venda.troco))}\nTroco: ${formatarMoeda(venda.troco)}` : ''}
+${venda.formaPagamento === 'combinar' ? `Dinheiro: ${formatarMoeda(venda.pagamentoDinheiro || 0)}\nPIX: ${formatarMoeda(venda.pagamentoPix || 0)}` : ''}
+
+Obrigado pela preferência!
+    `.trim();
+    return notaFiscal;
+  };
+
   const exportarParaExcel = (caixa: Caixa) => {
     const estatisticasCaixa = calcularEstatisticasCaixa(caixa);
     
@@ -205,7 +230,7 @@ ${caixa.vendas.map((venda, index) => {
                       ${caixa.vendas.map((venda, index) => {
                         const itens = venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).join(', ');
                         return `
-                          <tr>
+                          <tr key={venda.id}>
                             <td>${index + 1}</td>
                             <td>${formatarData(venda.data)}</td>
                             <td>${formatarMoeda(venda.total)}</td>
@@ -283,45 +308,16 @@ Itens: ${venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).joi
   };
 
   const exportarVendaIndividual = async (venda: any, caixaNome: string) => {
-    const notaFiscal = `
-NOTA FISCAL - VENDA ${venda.id.slice(-4).toUpperCase()}
-Caixa: ${caixaNome}
-Data: ${formatarData(venda.data)}
-Hora: ${new Date(venda.data).toLocaleTimeString('pt-BR')}
-
-ITENS:
-${venda.itens.map((item: any, index: number) => `${index + 1}. ${item.produto.nome}
-   ${item.quantidade}x R$ ${item.precoUnitario.toFixed(2)} = R$ ${item.subtotal.toFixed(2)}`).join('\n')}
-
-${venda.desconto > 0 ? `Desconto: -${formatarMoeda(venda.desconto)}\n` : ''}
-TOTAL: ${formatarMoeda(venda.total)}
-
-FORMA DE PAGAMENTO: ${venda.formaPagamento.toUpperCase()}
-${venda.formaPagamento === 'dinheiro' ? `Valor Recebido: ${formatarMoeda(parseFloat(venda.total + venda.troco))}\nTroco: ${formatarMoeda(venda.troco)}` : ''}
-${venda.formaPagamento === 'combinar' ? `Dinheiro: ${formatarMoeda(venda.pagamentoDinheiro || 0)}\nPIX: ${formatarMoeda(venda.pagamentoPix || 0)}` : ''}
-
-Obrigado pela preferência!
-    `.trim();
-
-    Alert.alert(
-      'Nota Fiscal Gerada',
-      'Escolha uma opção:',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Copiar Nota', 
-          onPress: () => copiarParaClipboard(notaFiscal)
-        },
-        { 
-          text: 'Ver Nota Fiscal', 
-          onPress: () => {
-            Alert.alert('Nota Fiscal', notaFiscal, [
-              { text: 'Fechar' }
-            ]);
-          }
-        }
-      ]
-    );
+    const notaFiscal = gerarNotaFiscal(venda, caixaNome);
+    setNotaTexto(notaFiscal);
+    setNotaModalVisible(true);
+  };
+    
+  const copiarNotaDoModal = async () => {
+    if (notaTexto) {
+      await Clipboard.setStringAsync(notaTexto);
+      Alert.alert('Copiado!', 'A nota fiscal foi copiada para a área de transferência.');
+    }
   };
 
   const calcularEstatisticasCaixa = (caixa: Caixa) => {
@@ -486,7 +482,6 @@ Obrigado pela preferência!
                         </View>
                         
                         <View style={styles.caixaActions}>
-
                           <IconButton
                             icon="download"
                             size={16}
@@ -646,15 +641,13 @@ Obrigado pela preferência!
                             </Text>
                             <View style={styles.modalVendaActions}>
                               <IconButton
-                                icon="eye"
-                                size={16}
-                                onPress={() => exportarVendaIndividual(venda, caixaSelecionada.nome)}
-                                iconColor="#00407B"
-                              />
-                              <IconButton
                                 icon="download"
                                 size={16}
-                                onPress={() => exportarVendaIndividual(venda, caixaSelecionada.nome)}
+                                onPress={() => {
+                                  const nota = gerarNotaFiscal(venda, caixaSelecionada.nome);
+                                  setNotaTexto(nota);
+                                  setNotaModalVisible(true);
+                                }}
                                 iconColor="#4CAF50"
                               />
                             </View>
@@ -685,6 +678,35 @@ Obrigado pela preferência!
               );
             })()}
           </ScrollView>
+        </Modal>
+      </Portal>
+
+      {/* Modal da Nota Fiscal */}
+      <Portal>
+        <Modal
+          visible={notaModalVisible}
+          onDismiss={() => setNotaModalVisible(false)}
+          contentContainerStyle={styles.notaModal}
+        >
+          <ScrollView style={styles.notaScrollView}>
+            <Text style={styles.notaTexto}>{notaTexto}</Text>
+          </ScrollView>
+          <View style={styles.notaBotoes}>
+            <Button
+              mode="outlined"
+              onPress={() => setNotaModalVisible(false)}
+              style={styles.notaBotao}
+            >
+              Fechar
+            </Button>
+            <Button
+              mode="contained"
+              onPress={() => copiarParaClipboard(notaTexto)}
+              style={styles.notaBotao}
+            >
+              Copiar Nota
+            </Button>
+          </View>
         </Modal>
       </Portal>
     </View>
@@ -954,5 +976,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
     marginTop: 16,
+  },
+  notaModal: {
+    backgroundColor: 'white',
+    margin: 20,
+    padding: 20,
+    borderRadius: 8,
+    maxHeight: '80%',
+  },
+  notaScrollView: {
+    flexGrow: 1,
+  },
+  notaTexto: {
+    fontFamily: 'monospace',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  notaBotoes: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 12,
+  },
+  notaBotao: {
+    flex: 1,
   },
 });

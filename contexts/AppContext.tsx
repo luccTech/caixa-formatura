@@ -163,8 +163,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         throw new Error('Já existe um caixa aberto!');
       }
 
-      const novoCaixa: Caixa = {
-        id: '', // será gerado pelo Firestore
+      const novoCaixa = {
+        id: '',
         nome,
         dataAbertura: new Date().toISOString(),
         itens: produtos.map(p => ({ produto: p, quantidade: 0 })),
@@ -219,16 +219,27 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   };
 
   const adicionarVenda = async (venda: Omit<Venda, 'id'>) => {
-    if (!caixaAtual) return;
+    if (!caixaAtual) {
+      console.error('Nenhum caixa está aberto para adicionar a venda.');
+      return;
+    }
     try {
+      // 1. Adicionar a nova venda à coleção de vendas
       const novaVenda = { ...venda, caixaId: caixaAtual.id };
-      const vendaRef = await addDoc(collection(db, 'vendas'), novaVenda);
+      await addDoc(collection(db, 'vendas'), novaVenda);
 
+      // 2. Atualizar o total de vendas do caixa atual
       const caixaRef = doc(db, 'caixas', caixaAtual.id);
-      await updateDoc(caixaRef, {
-        vendas: [...caixaAtual.vendas, { ...novaVenda, id: vendaRef.id }],
-        totalVendas: caixaAtual.totalVendas + novaVenda.total,
-      });
+      const caixaSnap = await getDoc(caixaRef);
+      if (caixaSnap.exists()) {
+        const dadosCaixa = caixaSnap.data();
+        const novoTotal = dadosCaixa.totalVendas + novaVenda.total;
+        await updateDoc(caixaRef, {
+          totalVendas: novoTotal,
+          vendas: [...(dadosCaixa.vendas || []), novaVenda]
+        });
+      }
+
     } catch (e) {
       console.error('Erro ao adicionar venda:', e);
     }
