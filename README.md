@@ -1,50 +1,133 @@
-# Welcome to your Expo app 👋
+# Sistema de Caixa - Formatura 4° Informatica 2025
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Um sistema de caixa profissional desenvolvido em React Native com Expo, para gerenciamento de produtos e vendas e otimizar nosso controle de caixa da formatura!!!!!
 
-## Get started
+## 🚀 Funcionalidades
 
-1. Install dependencies
+### 📦 Gestão de Produtos
+- ✅ Cadastro completo de produtos (nome, código, preço, estoque, categoria)
+- ✅ Edição de produtos existentes
+- ✅ Exclusão com confirmação
+- ✅ Códigos únicos para cada produto
+- ✅ Controle de estoque automático
 
+### 💰 Sistema de Caixa
+- ✅ Busca de produtos por código
+- ✅ Carrinho de compras interativo
+- ✅ Controle de quantidade e estoque
+- ✅ Múltiplas formas de pagamento (Dinheiro, Cartão, PIX)
+- ✅ Cálculo automático de troco
+- ✅ Aplicação de descontos
+- ✅ Atualização automática do estoque
+
+### 📊 Relatórios Avançados
+- ✅ Filtros por período (Hoje, Semana, Mês, Todos)
+- ✅ Estatísticas em tempo real
+- ✅ Análise por forma de pagamento
+- ✅ Ticket médio e receita total
+- ✅ Detalhes completos de cada venda
+
+## 🛠️ Tecnologias Utilizadas
+
+- **React Native** - Framework mobile
+- **Expo** - Plataforma de desenvolvimento
+- **TypeScript** - Tipagem estática
+- **React Native Paper** - Componentes Material Design
+- **AsyncStorage** - Persistência de dados
+- **Expo Router** - Navegação
+
+## 📱 Como Executar
+
+### Pré-requisitos
+- Node.js (versão 16 ou superior)
+- npm ou yarn
+- Expo CLI
+
+### Instalação
+
+1. **Clone o repositório:**
+   ```bash
+   git clone <url-do-repositorio>
+   cd caixa-formatura
+   ```
+
+2. **Instale as dependências:**
    ```bash
    npm install
    ```
 
-2. Start the app
-
+3. **Execute o projeto:**
    ```bash
-   npx expo start
+   npm start
    ```
 
-In the output, you'll find options to open the app in a
+4. **Escaneie o QR Code** com o app Expo Go no seu dispositivo móvel
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 📋 Como Usar
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### 1. Cadastrar Produtos
+- Acesse a aba "Produtos"
+- Toque no botão "+" para adicionar um novo produto
+- Preencha todos os campos obrigatórios:
+  - **Nome**: Nome do produto
+  - **Código**: Código único (ex: COLA001)
+  - **Preço**: Preço em reais
+  - **Estoque**: Quantidade disponível
+  - **Categoria**: Categoria do produto (livre)
 
-## Get a fresh project
+### 2. Realizar Vendas
+- Acesse a aba "Caixa"
+- Digite o código do produto no campo de busca
+- Toque na lupa ou pressione Enter
+- O produto será adicionado ao carrinho
+- Ajuste quantidades com os botões + e -
+- Aplique desconto se necessário
+- Toque em "Finalizar Venda"
+- Escolha a forma de pagamento
+- Confirme a venda
 
-When you're ready, run:
+### 3. Acompanhar Relatórios
+- Acesse a aba "Relatórios"
+- Use os filtros para ver vendas por período
+- Visualize estatísticas gerais
+- Toque em uma venda para ver detalhes completos
 
-```bash
-npm run reset-project
+## 🎨 Interface
+
+- **Design Material Design** com cores profissionais
+- **Navegação intuitiva** por abas
+- **Feedback visual** para todas as ações
+- **Modais elegantes** para formulários
+- **Cards organizados** para informações
+
+## 💾 Persistência de Dados
+
+- Todos os dados são salvos automaticamente no dispositivo
+- Produtos e vendas persistem entre sessões
+- Backup automático no AsyncStorage
+
+## 🔧 Estrutura do Projeto
+
+```
+caixa-formatura/
+├── app/
+│   ├── (tabs)/
+│   │   ├── index.tsx          # Tela de Produtos
+│   │   ├── caixa.tsx          # Tela do Caixa
+│   │   ├── relatorios.tsx     # Tela de Relatórios
+│   │   └── _layout.tsx        # Layout das abas
+│   └── _layout.tsx            # Layout principal
+├── contexts/
+│   └── AppContext.tsx         # Contexto global
+├── components/                # Componentes reutilizáveis
+└── package.json
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 🚀 Próximas Funcionalidades
 
-## Learn more
+- [ ] Exportação de relatórios em PDF
+- [ ] Backup na nuvem
+- [ ] Múltiplos usuários
+- [ ] Impressão de comprovantes
+- [ ] Integração com impressoras térmicas
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
