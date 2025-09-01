@@ -57,7 +57,7 @@ export default function RootLayout() {
           ]}
         >
           <Image
-            source={require('../assets/images/logo.png')}
+            source={require('../assets/images/logo1.png')}
             style={styles.logo}
             resizeMode="contain"
           />
