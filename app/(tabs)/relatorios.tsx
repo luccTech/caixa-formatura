@@ -131,7 +131,7 @@ export default function RelatoriosScreen() {
 
   const gerarNotaFiscal = (venda: any, caixaNome: string) => {
     const notaFiscal = `
-NOTA FISCAL - VENDA ${venda.id ? venda.id.slice(-4).toUpperCase() : 'N/A'}
+NOTA FISCAL - VENDA 
 Caixa: ${caixaNome}
 Data: ${formatarData(venda.data)}
 Hora: ${new Date(venda.data).toLocaleTimeString('pt-BR')}
@@ -214,7 +214,7 @@ ${caixa.vendas.map((venda, index) => {
                       <tr><td>Quantidade de Vendas</td><td>${caixa.vendas.length}</td></tr>
                       <tr><td>Total em Dinheiro</td><td>${formatarMoeda(estatisticasCaixa.totalDinheiro)}</td></tr>
                       <tr><td>Total em PIX</td><td>${formatarMoeda(estatisticasCaixa.totalPix)}</td></tr>
-                      <tr><td>Troco Total</td><td>${formatarMoeda(estatisticasCaixa.trocoTotal)}</td></tr>
+                     
                       <tr><td>Descontos Aplicados</td><td>${formatarMoeda(estatisticasCaixa.totalDescontos)}</td></tr>
                     </table>
                     
@@ -272,7 +272,6 @@ RESUMO FINANCEIRO:
 - Quantidade de Vendas: ${caixa.vendas.length}
 - Total em Dinheiro: ${formatarMoeda(estatisticasCaixa.totalDinheiro)}
 - Total em PIX: ${formatarMoeda(estatisticasCaixa.totalPix)}
-- Troco Total: ${formatarMoeda(estatisticasCaixa.trocoTotal)}
 - Descontos Aplicados: ${formatarMoeda(estatisticasCaixa.totalDescontos)}
 
 VENDAS REALIZADAS:
@@ -559,18 +558,19 @@ Itens: ${venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).joi
                     </View>
                     
                     <View style={styles.modalResumoItem}>
+                      <Text variant="bodyMedium">Quantidade de Vendas:</Text>
+                      <Text variant="bodyLarge">
+                        {caixaSelecionada.vendas.length}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.modalResumoItem}>
                       <Text variant="bodyMedium">Troco Inicial:</Text>
                       <Text variant="bodyLarge" style={styles.modalTrocoInicialValue}>
                         {formatarMoeda(caixaSelecionada.trocoInicial || 0)}
                       </Text>
                     </View>
                     
-                    <View style={styles.modalResumoItem}>
-                      <Text variant="bodyMedium">Quantidade de Vendas:</Text>
-                      <Text variant="bodyLarge">
-                        {caixaSelecionada.vendas.length}
-                      </Text>
-                    </View>
                   </View>
                   
                   <Divider style={styles.divider} />
@@ -591,13 +591,6 @@ Itens: ${venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).joi
                       <Text variant="bodyMedium">Total em PIX:</Text>
                       <Text variant="bodyLarge" style={styles.modalPixValue}>
                         {formatarMoeda(estatisticasCaixa.totalPix)}
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.modalResumoItem}>
-                      <Text variant="bodyMedium">Troco Total:</Text>
-                      <Text variant="bodyLarge" style={styles.modalTrocoValue}>
-                        {formatarMoeda(estatisticasCaixa.trocoTotal)}
                       </Text>
                     </View>
                     
