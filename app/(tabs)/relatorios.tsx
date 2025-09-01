@@ -177,14 +177,9 @@ ${caixa.vendas.map((venda, index) => {
 }).join('\n')}`;
 
     Alert.alert(
-      'Exportar para Excel/Google Sheets',
+      'Exportar para PDF',
       'Escolha uma opção:',
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Copiar CSV', 
-          onPress: () => copiarParaClipboard(csvContent)
-        },
         { 
           text: 'Compartilhar Arquivo', 
           onPress: async () => {
@@ -253,7 +248,8 @@ ${caixa.vendas.map((venda, index) => {
               Alert.alert('Erro', 'Erro ao gerar arquivo para compartilhamento');
             }
           }
-        }
+        },
+        { text: 'Cancelar', style: 'cancel' }
       ]
     );
   };
@@ -482,7 +478,7 @@ Itens: ${venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).joi
                         
                         <View style={styles.caixaActions}>
                           <IconButton
-                            icon="download"
+                            icon="content-copy"
                             size={16}
                             onPress={() => exportarRelatorioCaixa(caixa)}
                             iconColor="#00407B"
@@ -563,7 +559,7 @@ Itens: ${venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).joi
                         {caixaSelecionada.vendas.length}
                       </Text>
                     </View>
-                    
+
                     <View style={styles.modalResumoItem}>
                       <Text variant="bodyMedium">Troco Inicial:</Text>
                       <Text variant="bodyLarge" style={styles.modalTrocoInicialValue}>
@@ -634,7 +630,7 @@ Itens: ${venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).joi
                             </Text>
                             <View style={styles.modalVendaActions}>
                               <IconButton
-                                icon="download"
+                                icon="magnify"
                                 size={16}
                                 onPress={() => {
                                   const nota = gerarNotaFiscal(venda, caixaSelecionada.nome);
@@ -655,9 +651,9 @@ Itens: ${venda.itens.map(item => `${item.quantidade}x ${item.produto.nome}`).joi
                       mode="outlined"
                       onPress={() => exportarParaExcel(caixaSelecionada)}
                       style={styles.modalButton}
-                      icon="table"
+                      icon="file-document"
                     >
-                      Exportar Excel
+                      Exportar
                     </Button>
                     <Button
                       mode="contained"
