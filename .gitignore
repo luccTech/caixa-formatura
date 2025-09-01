@@ -79,6 +79,3 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
-
-# Firebase
-firebaseConfig.ts
