@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerLogo: {
-    width: 120,
+    width: 130,
     height: 63,
   },
 });
